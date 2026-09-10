@@ -7,10 +7,15 @@ on:
     branches: [main]
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: adaptative-nav-bar-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  validate:
+  quality:
+    name: Quality / Flutter 3.47.2
     runs-on:
       - self-hosted
       - devs-flutter-plugin-ci
@@ -18,8 +23,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Prepare runner dependencies
         run: |
@@ -43,34 +46,7 @@ jobs:
         working-directory: example
         run: flutter pub get
 
-      - name: Apply notch interaction fix
-        if: github.event_name == 'push'
-        run: |
-          python3 <<'PY'
-          from pathlib import Path
-
-          path = Path('lib/src/adaptive_nav_scaffold.dart')
-          text = path.read_text()
-          marker = 'class _NotchBottomBar extends StatelessWidget {'
-          before, notch = text.split(marker, 1)
-          old = 'child: InkWell('
-          if old not in notch:
-              raise SystemExit('Expected notch InkWell was not found')
-          notch = notch.replace(old, 'child: GestureDetector(', 1)
-          path.write_text(before + marker + notch)
-          PY
-
-          dart format .
-          if ! git diff --quiet; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add .
-            git commit -m "fix: make notch destinations material-independent"
-            git push origin HEAD:main
-          fi
-
-      - name: Check formatting on pull requests
-        if: github.event_name == 'pull_request'
+      - name: Check formatting
         run: dart format --output=none --set-exit-if-changed .
 
       - name: Analyze package
@@ -85,3 +61,93 @@ jobs:
 
       - name: Validate package publication
         run: dart pub publish --dry-run
+
+  minimum-flutter:
+    name: Minimum supported / Flutter 3.44.0
+    runs-on:
+      - self-hosted
+      - devs-flutter-plugin-ci
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare runner dependencies
+        run: |
+          if ! command -v xz >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y xz-utils
+          fi
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.0'
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze package
+        run: flutter analyze
+
+      - name: Test package
+        run: flutter test
+
+  platform-builds:
+    name: Builds / Android + Web JS + Web Wasm + Linux
+    runs-on:
+      - self-hosted
+      - devs-flutter-plugin-ci
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare runner dependencies
+        run: |
+          if ! command -v xz >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y xz-utils
+          fi
+          if ! pkg-config --exists gtk+-3.0 2>/dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev
+          fi
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.2'
+          channel: stable
+          cache: true
+
+      - name: Install package dependencies
+        run: flutter pub get
+
+      - name: Create build harness
+        run: |
+          rm -rf .ci_example
+          cp -R example .ci_example
+          cd .ci_example
+          flutter create --platforms=android,web,linux .
+          flutter pub get
+
+      - name: Build Web JavaScript
+        working-directory: .ci_example
+        run: flutter build web --release
+
+      - name: Build Web Wasm
+        working-directory: .ci_example
+        run: flutter build web --wasm --release
+
+      - name: Build Android
+        working-directory: .ci_example
+        run: flutter build apk --debug
+
+      - name: Build Linux
+        working-directory: .ci_example
+        run: |
+          flutter config --enable-linux-desktop
+          flutter build linux --debug
