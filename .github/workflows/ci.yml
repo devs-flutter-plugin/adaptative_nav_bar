@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: write
+
 jobs:
   validate:
     runs-on:
@@ -15,6 +18,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Prepare runner dependencies
         run: |
@@ -38,10 +43,21 @@ jobs:
         working-directory: example
         run: flutter pub get
 
-      - name: Check formatting
+      - name: Apply canonical formatting
+        if: github.event_name == 'push'
         run: |
           dart format .
-          git diff --exit-code
+          if ! git diff --quiet; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add .
+            git commit -m "style: apply canonical Flutter formatting"
+            git push origin HEAD:main
+          fi
+
+      - name: Check formatting on pull requests
+        if: github.event_name == 'pull_request'
+        run: dart format --output=none --set-exit-if-changed .
 
       - name: Analyze package
         run: flutter analyze
