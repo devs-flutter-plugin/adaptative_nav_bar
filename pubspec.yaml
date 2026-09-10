@@ -1,0 +1,26 @@
+name: adaptative_nav_bar
+description: Adaptive Flutter navigation with Material 3, floating, pill, notch, glass, rail, sidebar, and custom presentations behind one stable API.
+version: 0.1.0
+repository: https://github.com/devs-flutter-plugin/adaptative_nav_bar
+issue_tracker: https://github.com/devs-flutter-plugin/adaptative_nav_bar/issues
+
+topics:
+  - flutter
+  - navigation
+  - responsive
+  - material-3
+  - sidebar
+
+environment:
+  sdk: ">=3.12.0 <4.0.0"
+  flutter: ">=3.44.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  material_ui: ^1.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0

@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on:
+      - self-hosted
+      - devs-flutter-plugin-ci
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare runner dependencies
+        run: |
+          if ! command -v xz >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y xz-utils
+          fi
+          xz --version
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.2'
+          channel: stable
+          cache: true
+
+      - name: Install package dependencies
+        run: flutter pub get
+
+      - name: Install example dependencies
+        working-directory: example
+        run: flutter pub get
+
+      - name: Check formatting
+        run: |
+          dart format .
+          git diff --exit-code
+
+      - name: Analyze package
+        run: flutter analyze
+
+      - name: Test package
+        run: flutter test --coverage
+
+      - name: Analyze example
+        working-directory: example
+        run: flutter analyze
+
+      - name: Validate package publication
+        run: dart pub publish --dry-run
