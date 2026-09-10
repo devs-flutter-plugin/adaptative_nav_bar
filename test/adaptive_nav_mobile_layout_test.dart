@@ -2,44 +2,44 @@ import 'package:adaptative_nav_bar/adaptative_nav_bar.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 
-const List<AdaptiveNavDestination> _destinations =
-    <AdaptiveNavDestination>[
-      AdaptiveNavDestination(icon: Icon(Icons.home_outlined), label: 'Home'),
-      AdaptiveNavDestination(icon: Icon(Icons.explore_outlined), label: 'Discover'),
-      AdaptiveNavDestination(icon: Icon(Icons.swap_horiz), label: 'Trade'),
-      AdaptiveNavDestination(icon: Icon(Icons.hub_outlined), label: 'Grow'),
-      AdaptiveNavDestination(
-        icon: Icon(Icons.account_balance_wallet_outlined),
-        label: 'Assets',
-        badge: Text('3'),
-      ),
-    ];
+const List<AdaptiveNavDestination> _destinations = <AdaptiveNavDestination>[
+  AdaptiveNavDestination(icon: Icon(Icons.home_outlined), label: 'Home'),
+  AdaptiveNavDestination(icon: Icon(Icons.explore_outlined), label: 'Discover'),
+  AdaptiveNavDestination(icon: Icon(Icons.swap_horiz), label: 'Trade'),
+  AdaptiveNavDestination(icon: Icon(Icons.hub_outlined), label: 'Grow'),
+  AdaptiveNavDestination(
+    icon: Icon(Icons.account_balance_wallet_outlined),
+    label: 'Assets',
+    badge: Text('3'),
+  ),
+];
 
 void main() {
   for (final double width in <double>[320, 360, 390]) {
     for (final AdaptiveBottomNavStyle style in AdaptiveBottomNavStyle.values) {
-      testWidgets('${style.name} supports five destinations at ${width.toInt()} px', (
-        WidgetTester tester,
-      ) async {
-        await _setSurface(tester, Size(width, 800));
+      testWidgets(
+        '${style.name} supports five destinations at ${width.toInt()} px',
+        (WidgetTester tester) async {
+          await _setSurface(tester, Size(width, 800));
 
-        await tester.pumpWidget(
-          MaterialApp(
-            home: Scaffold(
-              body: AdaptiveNavScaffold(
-                selectedIndex: 2,
-                destinations: _destinations,
-                compact: AdaptiveNavPresentation.bottom(bottomStyle: style),
-                onDestinationSelected: (_) {},
-                body: const SizedBox.expand(),
+          await tester.pumpWidget(
+            MaterialApp(
+              home: Scaffold(
+                body: AdaptiveNavScaffold(
+                  selectedIndex: 2,
+                  destinations: _destinations,
+                  compact: AdaptiveNavPresentation.bottom(bottomStyle: style),
+                  onDestinationSelected: (_) {},
+                  body: const SizedBox.expand(),
+                ),
               ),
             ),
-          ),
-        );
+          );
 
-        await tester.pumpAndSettle();
-        expect(tester.takeException(), isNull);
-      });
+          await tester.pumpAndSettle();
+          expect(tester.takeException(), isNull);
+        },
+      );
     }
   }
 

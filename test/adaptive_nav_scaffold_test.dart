@@ -62,7 +62,9 @@ void main() {
     expect(find.byType(NavigationRail), findsNothing);
 
     final double homeY = tester.getCenter(find.byIcon(Icons.home)).dy;
-    final double searchY = tester.getCenter(find.byIcon(Icons.search_outlined)).dy;
+    final double searchY = tester
+        .getCenter(find.byIcon(Icons.search_outlined))
+        .dy;
     expect(searchY - homeY, lessThanOrEqualTo(56));
   });
 

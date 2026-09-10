@@ -169,7 +169,7 @@ class AdaptiveBottomNavRenderer extends StatelessWidget {
       requested >= 0 && requested < count,
       'AdaptiveRaisedNavItem.index must reference an existing destination.',
     );
-    return requested.clamp(0, count - 1) as int;
+    return requested.clamp(0, count - 1);
   }
 }
 
@@ -337,7 +337,9 @@ class _StandardDestination extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: theme.labelTextStyle?.copyWith(
                         color: foreground,
-                        fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                        fontWeight: selected
+                            ? FontWeight.w600
+                            : FontWeight.w400,
                       ),
                     ),
                   ],
@@ -748,9 +750,10 @@ class _GlassBottomBar extends StatelessWidget {
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
         child: Material(
-          color: (config.theme.backgroundColor ??
-                  Theme.of(context).colorScheme.surface)
-              .withValues(alpha: 0.72),
+          color:
+              (config.theme.backgroundColor ??
+                      Theme.of(context).colorScheme.surface)
+                  .withValues(alpha: 0.72),
           elevation: 0,
           child: SizedBox(
             height: 66,
@@ -797,13 +800,16 @@ class _RaisedDestinationOverlay extends StatelessWidget {
     final AdaptiveNavDestination destination = config.destinations[raisedIndex];
     final bool selected = config.selectedIndex == raisedIndex;
     final Color background =
-        raisedItem.backgroundColor ?? Theme.of(context).colorScheme.inverseSurface;
+        raisedItem.backgroundColor ??
+        Theme.of(context).colorScheme.inverseSurface;
     final Color foreground =
-        raisedItem.foregroundColor ?? Theme.of(context).colorScheme.onInverseSurface;
+        raisedItem.foregroundColor ??
+        Theme.of(context).colorScheme.onInverseSurface;
 
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
-        final double itemWidth = constraints.maxWidth / config.destinations.length;
+        final double itemWidth =
+            constraints.maxWidth / config.destinations.length;
         final double start =
             itemWidth * raisedIndex + (itemWidth - raisedItem.size) / 2;
 
@@ -839,7 +845,9 @@ class _RaisedDestinationOverlay extends StatelessWidget {
                             child: Center(
                               child: IconTheme(
                                 data: IconThemeData(color: foreground),
-                                child: destination.buildIcon(selected: selected),
+                                child: destination.buildIcon(
+                                  selected: selected,
+                                ),
                               ),
                             ),
                           ),
@@ -880,7 +888,8 @@ class _AnimatedNotchBottomBar extends StatefulWidget {
   final AdaptiveNavMotion motion;
 
   @override
-  State<_AnimatedNotchBottomBar> createState() => _AnimatedNotchBottomBarState();
+  State<_AnimatedNotchBottomBar> createState() =>
+      _AnimatedNotchBottomBarState();
 }
 
 class _AnimatedNotchBottomBarState extends State<_AnimatedNotchBottomBar>
@@ -891,7 +900,10 @@ class _AnimatedNotchBottomBarState extends State<_AnimatedNotchBottomBar>
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(vsync: this, duration: widget.motion.duration);
+    _controller = AnimationController(
+      vsync: this,
+      duration: widget.motion.duration,
+    );
     final double initial = widget.config.selectedIndex.toDouble();
     _position = AlwaysStoppedAnimation<double>(initial);
   }
@@ -904,10 +916,13 @@ class _AnimatedNotchBottomBarState extends State<_AnimatedNotchBottomBar>
     }
     if (oldWidget.config.selectedIndex != widget.config.selectedIndex) {
       final double start = _position.value;
-      _position = Tween<double>(
-        begin: start,
-        end: widget.config.selectedIndex.toDouble(),
-      ).animate(CurvedAnimation(parent: _controller, curve: widget.motion.curve));
+      _position =
+          Tween<double>(
+            begin: start,
+            end: widget.config.selectedIndex.toDouble(),
+          ).animate(
+            CurvedAnimation(parent: _controller, curve: widget.motion.curve),
+          );
       _controller.forward(from: 0);
     }
   }
@@ -931,7 +946,8 @@ class _AnimatedNotchBottomBarState extends State<_AnimatedNotchBottomBar>
           position,
           widget.config.destinations.length,
         );
-        final double physicalAlignment = Directionality.of(context) == TextDirection.rtl
+        final double physicalAlignment =
+            Directionality.of(context) == TextDirection.rtl
             ? -logicalAlignment
             : logicalAlignment;
 
@@ -982,7 +998,8 @@ class _AnimatedNotchBottomBarState extends State<_AnimatedNotchBottomBar>
                   label: selected.semanticLabel ?? selected.label,
                   child: GestureDetector(
                     onTap: selected.enabled
-                        ? () => widget.config.onDestinationSelected(selectedIndex)
+                        ? () =>
+                              widget.config.onDestinationSelected(selectedIndex)
                         : null,
                     child: Column(
                       mainAxisSize: MainAxisSize.min,

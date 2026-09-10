@@ -77,11 +77,10 @@ class AdaptiveReferenceBottomNavRenderer extends StatelessWidget {
           presentation,
           const AdaptivePersistentNavStyleConfig(),
         ).barHeight,
-      AdaptiveBottomNavStyle.google =>
-        _configOf<AdaptiveGoogleNavStyleConfig>(
-          presentation,
-          const AdaptiveGoogleNavStyleConfig(),
-        ).barHeight,
+      AdaptiveBottomNavStyle.google => _configOf<AdaptiveGoogleNavStyleConfig>(
+        presentation,
+        const AdaptiveGoogleNavStyleConfig(),
+      ).barHeight,
       AdaptiveBottomNavStyle.stylish =>
         _configOf<AdaptiveStylishNavStyleConfig>(
           presentation,
@@ -157,7 +156,8 @@ class AdaptiveReferenceBottomNavRenderer extends StatelessWidget {
       _ => const SizedBox.shrink(),
     };
 
-    final Widget layered = raisedItem != null &&
+    final Widget layered =
+        raisedItem != null &&
             presentation.bottomStyle != AdaptiveBottomNavStyle.notch
         ? _RaisedDestinationOverlay(
             config: config,
@@ -224,7 +224,8 @@ class AdaptiveReferenceBottomNavRenderer extends StatelessWidget {
       return;
     }
     final bool valid = switch (presentation.bottomStyle) {
-      AdaptiveBottomNavStyle.floating => value is AdaptiveFloatingNavStyleConfig,
+      AdaptiveBottomNavStyle.floating =>
+        value is AdaptiveFloatingNavStyleConfig,
       AdaptiveBottomNavStyle.notch => value is AdaptiveNotchNavStyleConfig,
       AdaptiveBottomNavStyle.persistent =>
         value is AdaptivePersistentNavStyleConfig,
@@ -246,7 +247,7 @@ class AdaptiveReferenceBottomNavRenderer extends StatelessWidget {
       requested >= 0 && requested < count,
       'AdaptiveRaisedNavItem.index must reference an existing destination.',
     );
-    return requested.clamp(0, count - 1) as int;
+    return requested.clamp(0, count - 1);
   }
 
   static T _configOf<T extends AdaptiveBottomNavStyleConfig>(
@@ -460,9 +461,11 @@ class _GoogleDestination extends StatelessWidget {
   Widget build(BuildContext context) {
     final Color foreground = selected
         ? config.theme.selectedColor ?? Theme.of(context).colorScheme.primary
-        : config.theme.foregroundColor ?? Theme.of(context).colorScheme.onSurfaceVariant;
+        : config.theme.foregroundColor ??
+              Theme.of(context).colorScheme.onSurfaceVariant;
     final Color indicator =
-        config.theme.indicatorColor ?? Theme.of(context).colorScheme.secondaryContainer;
+        config.theme.indicatorColor ??
+        Theme.of(context).colorScheme.secondaryContainer;
 
     return _DestinationSemantics(
       destination: destination,
@@ -492,30 +495,24 @@ class _GoogleDestination extends StatelessWidget {
                 data: IconThemeData(color: foreground),
                 child: destination.buildIcon(selected: selected),
               ),
-              AnimatedSize(
-                duration: motion.duration,
-                curve: motion.curve,
-                child: selected
-                    ? Padding(
-                        padding: EdgeInsetsDirectional.only(start: style.gap),
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(maxWidth: style.maxLabelWidth),
-                          child: Text(
-                            destination.label,
-                            key: ValueKey<String>(
-                              'google-selected-label-${destination.label}',
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: config.theme.labelTextStyle?.copyWith(
-                              color: foreground,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      )
-                    : const SizedBox.shrink(),
-              ),
+              if (selected)
+                Flexible(
+                  child: Padding(
+                    padding: EdgeInsetsDirectional.only(start: style.gap),
+                    child: Text(
+                      destination.label,
+                      key: ValueKey<String>(
+                        'google-selected-label-${destination.label}',
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: config.theme.labelTextStyle?.copyWith(
+                        color: foreground,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
@@ -620,7 +617,8 @@ class _StylishDestination extends StatelessWidget {
   Widget build(BuildContext context) {
     final Color foreground = selected
         ? config.theme.selectedColor ?? Theme.of(context).colorScheme.primary
-        : config.theme.foregroundColor ?? Theme.of(context).colorScheme.onSurfaceVariant;
+        : config.theme.foregroundColor ??
+              Theme.of(context).colorScheme.onSurfaceVariant;
     final bool animated =
         style.variant == AdaptiveStylishVariant.animated ||
         style.variant == AdaptiveStylishVariant.blur;
@@ -668,8 +666,8 @@ class _StylishDestination extends StatelessWidget {
               curve: Curves.fastOutSlowIn,
               width: selected
                   ? style.dotStyle == AdaptiveStylishDotStyle.circle
-                      ? style.dotSize
-                      : style.tileWidth
+                        ? style.dotSize
+                        : style.tileWidth
                   : 0,
               height: selected ? style.indicatorHeight : 0,
               decoration: BoxDecoration(
@@ -817,9 +815,11 @@ class _RaisedDestinationOverlay extends StatelessWidget {
   Widget build(BuildContext context) {
     final AdaptiveNavDestination destination = config.destinations[raisedIndex];
     final bool selected = config.selectedIndex == raisedIndex;
-    final Color background = raisedItem.backgroundColor ??
+    final Color background =
+        raisedItem.backgroundColor ??
         Theme.of(context).colorScheme.inverseSurface;
-    final Color foreground = raisedItem.foregroundColor ??
+    final Color foreground =
+        raisedItem.foregroundColor ??
         Theme.of(context).colorScheme.onInverseSurface;
 
     return LayoutBuilder(
@@ -865,7 +865,9 @@ class _RaisedDestinationOverlay extends StatelessWidget {
                             child: Center(
                               child: IconTheme(
                                 data: IconThemeData(color: foreground),
-                                child: destination.buildIcon(selected: selected),
+                                child: destination.buildIcon(
+                                  selected: selected,
+                                ),
                               ),
                             ),
                           ),
@@ -947,12 +949,13 @@ class _MovingNotchBarState extends State<_MovingNotchBar>
         return;
       }
       final double start = _position.value;
-      _position = Tween<double>(
-        begin: start,
-        end: widget.config.selectedIndex.toDouble(),
-      ).animate(
-        CurvedAnimation(parent: _controller, curve: widget.motion.curve),
-      );
+      _position =
+          Tween<double>(
+            begin: start,
+            end: widget.config.selectedIndex.toDouble(),
+          ).animate(
+            CurvedAnimation(parent: _controller, curve: widget.motion.curve),
+          );
       _controller.forward(from: 0);
     }
   }
@@ -979,7 +982,8 @@ class _MovingNotchBarState extends State<_MovingNotchBar>
               widget.config.destinations.length,
               position,
             );
-            final double center = Directionality.of(context) == TextDirection.rtl
+            final double center =
+                Directionality.of(context) == TextDirection.rtl
                 ? constraints.maxWidth - logicalCenter
                 : logicalCenter;
             final double buttonStart = center - widget.style.buttonSize / 2;
@@ -1010,7 +1014,10 @@ class _MovingNotchBarState extends State<_MovingNotchBar>
                     top: widget.style.contentTop,
                     child: Row(
                       children: <Widget>[
-                        for (final (int index, AdaptiveNavDestination destination)
+                        for (final (
+                              int index,
+                              AdaptiveNavDestination destination,
+                            )
                             in widget.config.destinations.indexed)
                           Expanded(
                             child: index == selectedIndex
@@ -1039,22 +1046,26 @@ class _MovingNotchBarState extends State<_MovingNotchBar>
                           mainAxisSize: MainAxisSize.min,
                           children: <Widget>[
                             Material(
-                              key: const ValueKey<String>('adaptive-notch-button'),
+                              key: const ValueKey<String>(
+                                'adaptive-notch-button',
+                              ),
                               color: widget.config.theme.indicatorColor,
                               elevation: widget.style.buttonElevation,
                               shape: const CircleBorder(),
                               clipBehavior: Clip.antiAlias,
                               child: InkWell(
                                 onTap: selected.enabled
-                                    ? () => widget.config
-                                        .onDestinationSelected(selectedIndex)
+                                    ? () => widget.config.onDestinationSelected(
+                                        selectedIndex,
+                                      )
                                     : null,
                                 child: SizedBox.square(
                                   dimension: widget.style.buttonSize,
                                   child: Center(
                                     child: IconTheme(
                                       data: IconThemeData(
-                                        color: widget.config.theme.selectedColor,
+                                        color:
+                                            widget.config.theme.selectedColor,
                                       ),
                                       child: selected.buildIcon(selected: true),
                                     ),
@@ -1068,10 +1079,11 @@ class _MovingNotchBarState extends State<_MovingNotchBar>
                                 selected.label,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: widget.config.theme.labelTextStyle?.copyWith(
-                                  color: widget.config.theme.selectedColor,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                                style: widget.config.theme.labelTextStyle
+                                    ?.copyWith(
+                                      color: widget.config.theme.selectedColor,
+                                      fontWeight: FontWeight.w600,
+                                    ),
                               ),
                             ],
                           ],
@@ -1217,9 +1229,11 @@ class _ExpandingCapsuleDestination extends StatelessWidget {
   Widget build(BuildContext context) {
     final Color foreground = selected
         ? config.theme.selectedColor ?? Theme.of(context).colorScheme.primary
-        : config.theme.foregroundColor ?? Theme.of(context).colorScheme.onSurfaceVariant;
+        : config.theme.foregroundColor ??
+              Theme.of(context).colorScheme.onSurfaceVariant;
     final Color indicator =
-        config.theme.indicatorColor ?? Theme.of(context).colorScheme.secondaryContainer;
+        config.theme.indicatorColor ??
+        Theme.of(context).colorScheme.secondaryContainer;
 
     return _DestinationSemantics(
       destination: destination,
@@ -1249,45 +1263,24 @@ class _ExpandingCapsuleDestination extends StatelessWidget {
                 data: IconThemeData(color: foreground),
                 child: destination.buildIcon(selected: selected),
               ),
-              AnimatedSize(
-                duration: motion.duration,
-                curve: motion.curve,
-                child: selected
-                    ? Padding(
-                        padding: EdgeInsetsDirectional.only(start: gap),
-                        child: FlexibleLabel(
-                          label: destination.label,
-                          style: config.theme.labelTextStyle?.copyWith(
-                            color: foreground,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      )
-                    : const SizedBox.shrink(),
-              ),
+              if (selected)
+                Flexible(
+                  child: Padding(
+                    padding: EdgeInsetsDirectional.only(start: gap),
+                    child: Text(
+                      destination.label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: config.theme.labelTextStyle?.copyWith(
+                        color: foreground,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class FlexibleLabel extends StatelessWidget {
-  const FlexibleLabel({required this.label, required this.style, super.key});
-
-  final String label;
-  final TextStyle? style;
-
-  @override
-  Widget build(BuildContext context) {
-    return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 76),
-      child: Text(
-        label,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: style,
       ),
     );
   }
@@ -1316,7 +1309,8 @@ class _IconLabelDestination extends StatelessWidget {
   Widget build(BuildContext context) {
     final Color foreground = selected
         ? config.theme.selectedColor ?? Theme.of(context).colorScheme.primary
-        : config.theme.foregroundColor ?? Theme.of(context).colorScheme.onSurfaceVariant;
+        : config.theme.foregroundColor ??
+              Theme.of(context).colorScheme.onSurfaceVariant;
     return _DestinationSemantics(
       destination: destination,
       selected: selected,
@@ -1328,7 +1322,10 @@ class _IconLabelDestination extends StatelessWidget {
           curve: motion.curve,
           constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
           margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 3),
-          padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 4),
+          padding: EdgeInsets.symmetric(
+            horizontal: horizontalPadding,
+            vertical: 4,
+          ),
           decoration: BoxDecoration(
             color: selected && selectedIndicator
                 ? config.theme.indicatorColor

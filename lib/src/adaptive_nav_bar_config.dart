@@ -41,5 +41,7 @@ class AdaptiveNavBarConfig {
 }
 
 /// Builder used by [AdaptiveNavPresentation.custom].
-typedef AdaptiveNavBarBuilder =
-    Widget Function(BuildContext context, AdaptiveNavBarConfig config);
+typedef AdaptiveNavBarBuilder = Widget Function(
+  BuildContext context,
+  AdaptiveNavBarConfig config,
+);

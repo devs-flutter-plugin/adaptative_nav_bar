@@ -27,8 +27,9 @@ class AdaptiveRailRenderer extends StatelessWidget {
         config: config,
         showIndicator: false,
       ),
-      AdaptiveRailStyle.indicator when !railExtended =>
-        _DenseRail(config: config),
+      AdaptiveRailStyle.indicator when !railExtended => _DenseRail(
+        config: config,
+      ),
       _ => NavigationRail(
         selectedIndex: config.selectedIndex,
         onDestinationSelected: config.onDestinationSelected,
