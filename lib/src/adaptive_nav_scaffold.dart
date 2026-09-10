@@ -1,6 +1,5 @@
 import 'dart:ui' show ImageFilter, Path;
 
-import 'package:flutter/foundation.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'adaptive_nav_bar_config.dart';
@@ -425,8 +424,7 @@ class _MaterialBottomBar extends StatelessWidget {
       selectedIndex: config.selectedIndex,
       onDestinationSelected: config.onDestinationSelected,
       destinations: <Widget>[
-        for (final (int index, AdaptiveNavDestination destination)
-            in config.destinations.indexed)
+        for (final AdaptiveNavDestination destination in config.destinations)
           NavigationDestination(
             icon: destination.buildIcon(selected: false),
             selectedIcon: destination.buildIcon(selected: true),

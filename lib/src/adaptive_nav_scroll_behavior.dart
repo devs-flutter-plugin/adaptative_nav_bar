@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:material_ui/material_ui.dart';
 
 /// Controls scroll-driven visibility changes for navigation surfaces.
