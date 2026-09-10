@@ -1,16 +1,21 @@
-name: Apply adaptive rail layout fix
+name: CI
 
 on:
   push:
     branches: [main]
-    paths:
-      - .github/workflows/ci.yml
+  pull_request:
+    branches: [main]
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: adaptative-nav-bar-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  fix:
+  quality:
+    name: Quality / Flutter 3.47.2
     runs-on:
       - self-hosted
       - devs-flutter-plugin-ci
@@ -18,8 +23,14 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
+
+      - name: Prepare runner dependencies
+        run: |
+          if ! command -v xz >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y xz-utils
+          fi
+          xz --version
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -28,11 +39,52 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Apply layout corrections
+      - name: Install package dependencies
+        run: flutter pub get
+
+      - name: Install example dependencies
+        working-directory: example
+        run: flutter pub get
+
+      - name: Check formatting
+        run: dart format --output=none --set-exit-if-changed .
+
+      - name: Analyze package
+        run: flutter analyze
+
+      - name: Test package
+        run: flutter test --coverage
+
+      - name: Analyze example
+        working-directory: example
+        run: flutter analyze
+
+      - name: Validate package publication
+        run: dart pub publish --dry-run
+
+  minimum-flutter:
+    name: Minimum supported / Flutter 3.44.0
+    runs-on:
+      - self-hosted
+      - devs-flutter-plugin-ci
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Prepare runner dependencies
         run: |
-          echo 'ZnJvbSBwYXRobGliIGltcG9ydCBQYXRoCgpjb250cm9sbGVyID0gUGF0aCgnbGliL3NyYy9hZGFwdGl2ZV9uYXZfY29udHJvbGxlci5kYXJ0JykKY29udHJvbGxlci53cml0ZV90ZXh0KCIiIi8vIGlnbm9yZV9mb3JfZmlsZTogcHJlZmVyX2luaXRpYWxpemluZ19mb3JtYWxzCgppbXBvcnQgJ3BhY2thZ2U6Zmx1dHRlci9mb3VuZGF0aW9uLmRhcnQnOwoKLy8vIEltcGVyYXRpdmUgdmlzaWJpbGl0eSBhbmQgZXhwYW5zaW9uIGNvbnRyb2xsZXIgZm9yIGFkYXB0aXZlIG5hdmlnYXRpb24uCi8vLwovLy8gRGVzdGluYXRpb24gc2VsZWN0aW9uIGludGVudGlvbmFsbHkgc3RheXMgY29udHJvbGxlZCBieQovLy8gYHNlbGVjdGVkSW5kZXhgL2BvbkRlc3RpbmF0aW9uU2VsZWN0ZWRgIHNvIHRoZSBwYWNrYWdlIHJlbWFpbnMgY29tcGF0aWJsZQovLy8gd2l0aCBSb3V0ZXIgQVBJIHNvbHV0aW9ucyBzdWNoIGFzIGBnb19yb3V0ZXJgLgpjbGFzcyBBZGFwdGl2ZU5hdkNvbnRyb2xsZXIgZXh0ZW5kcyBDaGFuZ2VOb3RpZmllciB7CiAgLy8vIENyZWF0ZXMgYSBjb250cm9sbGVyLgogIC8vLwogIC8vLyBXaGVuIFtleHBhbmRlZF0gaXMgb21pdHRlZCwgZWFjaCBhZGFwdGl2ZSBwcmVzZW50YXRpb24ga2VlcHMgaXRzIG93bgogIC8vLyBgZXh0ZW5kZWRgIGRlZmF1bHQuIENhbGxpbmcgW2V4cGFuZF0sIFtjb2xsYXBzZV0sIG9yIFt0b2dnbGVFeHBhbmRlZF0KICAvLy8gY3JlYXRlcyBhbiBleHBsaWNpdCBleHBhbnNpb24gb3ZlcnJpZGUuCiAgQWRhcHRpdmVOYXZDb250cm9sbGVyKHtib29sIHZpc2libGUgPSB0cnVlLCBib29sPyBleHBhbmRlZH0pCiAgICA6IF92aXNpYmxlID0gdmlzaWJsZSwKICAgICAgX2V4cGFuZGVkID0gZXhwYW5kZWQ7CgogIGJvb2wgX3Zpc2libGU7CiAgYm9vbD8gX2V4cGFuZGVkOwoKICAvLy8gV2hldGhlciB0aGUgY3VycmVudCBuYXZpZ2F0aW9uIHN1cmZhY2UgaXMgdmlzaWJsZS4KICBib29sIGdldCB2aXNpYmxlID0+IF92aXNpYmxlOwoKICAvLy8gRXhwbGljaXQgZXhwYW5zaW9uIG92ZXJyaWRlLCBvciBgbnVsbGAgdG8gdXNlIHRoZSBwcmVzZW50YXRpb24gZGVmYXVsdC4KICBib29sPyBnZXQgZXhwYW5kZWQgPT4gX2V4cGFuZGVkOwoKICAvLy8gV2hldGhlciBhbiBleHBsaWNpdCBleHBhbnNpb24gb3ZlcnJpZGUgaXMgY3VycmVudGx5IGFjdGl2ZS4KICBib29sIGdldCBoYXNFeHBhbnNpb25PdmVycmlkZSA9PiBfZXhwYW5kZWQgIT0gbnVsbDsKCiAgLy8vIFNob3dzIHRoZSBuYXZpZ2F0aW9uIHN1cmZhY2UuCiAgdm9pZCBzaG93KCkgPT4gX3NldFZpc2libGUodHJ1ZSk7CgogIC8vLyBIaWRlcyB0aGUgbmF2aWdhdGlvbiBzdXJmYWNlLgogIHZvaWQgaGlkZSgpID0+IF9zZXRWaXNpYmxlKGZhbHNlKTsKCiAgLy8vIFRvZ2dsZXMgbmF2aWdhdGlvbiB2aXNpYmlsaXR5LgogIHZvaWQgdG9nZ2xlVmlzaWJpbGl0eSgpID0+IF9zZXRWaXNpYmxlKCFfdmlzaWJsZSk7CgogIC8vLyBFeHBhbmRzIHN1cHBvcnRlZCByYWlsL3NpZGViYXIgcHJlc2VudGF0aW9ucy4KICB2b2lkIGV4cGFuZCgpID0+IF9zZXRFeHBhbmRlZCh0cnVlKTsKCiAgLy8vIENvbGxhcHNlcyBzdXBwb3J0ZWQgcmFpbC9zaWRlYmFyIHByZXNlbnRhdGlvbnMuCiAgdm9pZCBjb2xsYXBzZSgpID0+IF9zZXRFeHBhbmRlZChmYWxzZSk7CgogIC8vLyBUb2dnbGVzIHJhaWwvc2lkZWJhciBleHBhbnNpb24uCiAgLy8vCiAgLy8vIFtjdXJyZW50XSBzaG91bGQgYmUgc3VwcGxpZWQgYnkgYSBwcmVzZW50YXRpb24gd2hlbiBubyBleHBsaWNpdCBvdmVycmlkZQogIC8vLyBleGlzdHMgeWV0LCBzbyB0aGUgZmlyc3QgdG9nZ2xlIGlzIHJlbGF0aXZlIHRvIHRoYXQgcHJlc2VudGF0aW9uIHN0YXRlLgogIHZvaWQgdG9nZ2xlRXhwYW5kZWQoW2Jvb2wgY3VycmVudCA9IGZhbHNlXSkgPT4KICAgICAgX3NldEV4cGFuZGVkKCEoX2V4cGFuZGVkID8/IGN1cnJlbnQpKTsKCiAgLy8vIFJlbW92ZXMgdGhlIGV4cGxpY2l0IGV4cGFuc2lvbiBvdmVycmlkZSBhbmQgcmVzdG9yZXMgcHJlc2VudGF0aW9uIGRlZmF1bHRzLgogIHZvaWQgY2xlYXJFeHBhbnNpb25PdmVycmlkZSgpIHsKICAgIGlmIChfZXhwYW5kZWQgPT0gbnVsbCkgewogICAgICByZXR1cm47CiAgICB9CiAgICBfZXhwYW5kZWQgPSBudWxsOwogICAgbm90aWZ5TGlzdGVuZXJzKCk7CiAgfQoKICB2b2lkIF9zZXRFeHBhbmRlZChib29sIHZhbHVlKSB7CiAgICBpZiAoX2V4cGFuZGVkID09IHZhbHVlKSB7CiAgICAgIHJldHVybjsKICAgIH0KICAgIF9leHBhbmRlZCA9IHZhbHVlOwogICAgbm90aWZ5TGlzdGVuZXJzKCk7CiAgfQoKICB2b2lkIF9zZXRWaXNpYmxlKGJvb2wgdmFsdWUpIHsKICAgIGlmIChfdmlzaWJsZSA9PSB2YWx1ZSkgewogICAgICByZXR1cm47CiAgICB9CiAgICBfdmlzaWJsZSA9IHZhbHVlOwogICAgbm90aWZ5TGlzdGVuZXJzKCk7CiAgfQp9CiIiIikKCnNjYWZmb2xkID0gUGF0aCgnbGliL3NyYy9hZGFwdGl2ZV9uYXZfc2NhZmZvbGQuZGFydCcpCnRleHQgPSBzY2FmZm9sZC5yZWFkX3RleHQoKQoKb2xkX3JhaWwgPSAiIiIgICAgZmluYWwgV2lkZ2V0IHJhaWwgPSBwcmVzZW50YXRpb24ucmFpbFN0eWxlID09IEFkYXB0aXZlUmFpbFN0eWxlLmNvbXBhY3QKICAgICAgICA/IF9Db21wYWN0UmFpbChjb25maWc6IGNvbmZpZykKICAgICAgICA6IF9NYXRlcmlhbFJhaWwoCiAgICAgICAgICAgIGNvbmZpZzogY29uZmlnLAogICAgICAgICAgICBzdHlsZTogcHJlc2VudGF0aW9uLnJhaWxTdHlsZSwKICAgICAgICAgICAgZXh0ZW5kZWQ6IGNvbmZpZy5leHBhbmRlZCwKICAgICAgICAgICk7CiIiIgpuZXdfcmFpbCA9ICIiIiAgICAvLyBBIE1hdGVyaWFsIE5hdmlnYXRpb25SYWlsIG5lZWRzIGVub3VnaCBob3Jpem9udGFsIHJvb20gYmVmb3JlIGl0IGNhbgogICAgLy8gc2FmZWx5IHJlbmRlciBpbiBleHRlbmRlZCBtb2RlLiBLZWVwaW5nIG5hcnJvdyByYWlscyBjb2xsYXBzZWQgcHJldmVudHMKICAgIC8vIGxhYmVscyBhbmQgaW5kaWNhdG9ycyBmcm9tIG92ZXJmbG93aW5nIHRoZWlyIDgwIHB4IGRlZmF1bHQgZm9vdHByaW50LgogICAgZmluYWwgYm9vbCByYWlsRXh0ZW5kZWQgPSBjb25maWcuZXhwYW5kZWQgJiYgcHJlc2VudGF0aW9uLndpZHRoID49IDI1NjsKICAgIGZpbmFsIFdpZGdldCByYWlsID0gc3dpdGNoIChwcmVzZW50YXRpb24ucmFpbFN0eWxlKSB7CiAgICAgIEFkYXB0aXZlUmFpbFN0eWxlLmNvbXBhY3QgPT4gX0NvbXBhY3RSYWlsKAogICAgICAgIGNvbmZpZzogY29uZmlnLAogICAgICAgIHNob3dJbmRpY2F0b3I6IGZhbHNlLAogICAgICApLAogICAgICBBZGFwdGl2ZVJhaWxTdHlsZS5pbmRpY2F0b3Igd2hlbiAhcmFpbEV4dGVuZGVkID0+CiAgICAgICAgX0NvbXBhY3RSYWlsKGNvbmZpZzogY29uZmlnKSwKICAgICAgXyA9PiBfTWF0ZXJpYWxSYWlsKAogICAgICAgIGNvbmZpZzogY29uZmlnLAogICAgICAgIHN0eWxlOiBwcmVzZW50YXRpb24ucmFpbFN0eWxlLAogICAgICAgIGV4dGVuZGVkOiByYWlsRXh0ZW5kZWQsCiAgICAgICksCiAgICB9OwoiIiIKaWYgb2xkX3JhaWwgbm90IGluIHRleHQ6CiAgICByYWlzZSBTeXN0ZW1FeGl0KCdFeHBlY3RlZCByYWlsIGJ1aWxkZXIgYmxvY2sgd2FzIG5vdCBmb3VuZCcpCnRleHQgPSB0ZXh0LnJlcGxhY2Uob2xkX3JhaWwsIG5ld19yYWlsLCAxKQoKb2xkX3RvZ2dsZSA9ICIgICAgICB3aWRnZXQuY29udHJvbGxlciEudG9nZ2xlRXhwYW5kZWQoKTtcbiIKbmV3X3RvZ2dsZSA9ICIgICAgICB3aWRnZXQuY29udHJvbGxlciEudG9nZ2xlRXhwYW5kZWQoY3VycmVudCk7XG4iCmlmIG9sZF90b2dnbGUgbm90IGluIHRleHQ6CiAgICByYWlzZSBTeXN0ZW1FeGl0KCdFeHBlY3RlZCBjb250cm9sbGVyIHRvZ2dsZSBjYWxsIHdhcyBub3QgZm91bmQnKQp0ZXh0ID0gdGV4dC5yZXBsYWNlKG9sZF90b2dnbGUsIG5ld190b2dnbGUsIDEpCgpvbGRfY29tcGFjdF9jdG9yID0gIiIiY2xhc3MgX0NvbXBhY3RSYWlsIGV4dGVuZHMgU3RhdGVsZXNzV2lkZ2V0IHsKICBjb25zdCBfQ29tcGFjdFJhaWwoe3JlcXVpcmVkIHRoaXMuY29uZmlnfSk7CgogIGZpbmFsIEFkYXB0aXZlTmF2QmFyQ29uZmlnIGNvbmZpZzsKIiIiCm5ld19jb21wYWN0X2N0b3IgPSAiIiJjbGFzcyBfQ29tcGFjdFJhaWwgZXh0ZW5kcyBTdGF0ZWxlc3NXaWRnZXQgewogIGNvbnN0IF9Db21wYWN0UmFpbCh7cmVxdWlyZWQgdGhpcy5jb25maWcsIHRoaXMuc2hvd0luZGljYXRvciA9IHRydWV9KTsKCiAgZmluYWwgQWRhcHRpdmVOYXZCYXJDb25maWcgY29uZmlnOwogIGZpbmFsIGJvb2wgc2hvd0luZGljYXRvcjsKIiIiCmlmIG9sZF9jb21wYWN0X2N0b3Igbm90IGluIHRleHQ6CiAgICByYWlzZSBTeXN0ZW1FeGl0KCdFeHBlY3RlZCBjb21wYWN0IHJhaWwgY29uc3RydWN0b3Igd2FzIG5vdCBmb3VuZCcpCnRleHQgPSB0ZXh0LnJlcGxhY2Uob2xkX2NvbXBhY3RfY3RvciwgbmV3X2NvbXBhY3RfY3RvciwgMSkKCmNvbXBhY3Rfc3RhcnQgPSB0ZXh0LmluZGV4KCdjbGFzcyBfQ29tcGFjdFJhaWwgZXh0ZW5kcyBTdGF0ZWxlc3NXaWRnZXQnKQpjb21wYWN0X2VuZCA9IHRleHQuaW5kZXgoJ2NsYXNzIF9TaWRlYmFyIGV4dGVuZHMgU3RhdGVsZXNzV2lkZ2V0JykKY29tcGFjdF9zZWN0aW9uID0gdGV4dFtjb21wYWN0X3N0YXJ0OmNvbXBhY3RfZW5kXQpvbGRfY29tcGFjdF9pdGVtID0gIiIiICAgICAgICAgICAgICAgIHRoZW1lOiBjb25maWcudGhlbWUsCiAgICAgICAgICAgICAgICBvblRhcDogKCkgPT4gY29uZmlnLm9uRGVzdGluYXRpb25TZWxlY3RlZChpbmRleCksCiIiIgpuZXdfY29tcGFjdF9pdGVtID0gIiIiICAgICAgICAgICAgICAgIHRoZW1lOiBjb25maWcudGhlbWUsCiAgICAgICAgICAgICAgICBtaW5pbWFsOiAhc2hvd0luZGljYXRvciwKICAgICAgICAgICAgICAgIG9uVGFwOiAoKSA9PiBjb25maWcub25EZXN0aW5hdGlvblNlbGVjdGVkKGluZGV4KSwKIiIiCmlmIG9sZF9jb21wYWN0X2l0ZW0gbm90IGluIGNvbXBhY3Rfc2VjdGlvbjoKICAgIHJhaXNlIFN5c3RlbUV4aXQoJ0V4cGVjdGVkIGNvbXBhY3QgcmFpbCBkZXN0aW5hdGlvbiB3YXMgbm90IGZvdW5kJykKY29tcGFjdF9zZWN0aW9uID0gY29tcGFjdF9zZWN0aW9uLnJlcGxhY2Uob2xkX2NvbXBhY3RfaXRlbSwgbmV3X2NvbXBhY3RfaXRlbSwgMSkKdGV4dCA9IHRleHRbOmNvbXBhY3Rfc3RhcnRdICsgY29tcGFjdF9zZWN0aW9uICsgdGV4dFtjb21wYWN0X2VuZDpdCgpvbGRfbWV0cmljcyA9ICIiIiAgICAgIG1hcmdpbjogY29uc3QgRWRnZUluc2V0cy5zeW1tZXRyaWMoaG9yaXpvbnRhbDogOCwgdmVydGljYWw6IDMpLAogICAgICBwYWRkaW5nOiB0aGVtZS5pdGVtUGFkZGluZywKIiIiCm5ld19tZXRyaWNzID0gIiIiICAgICAgd2lkdGg6IGV4cGFuZGVkID8gbnVsbCA6IDQ4LAogICAgICBoZWlnaHQ6IGV4cGFuZGVkID8gbnVsbCA6IDQ4LAogICAgICBtYXJnaW46IGV4cGFuZGVkCiAgICAgICAgICA/IGNvbnN0IEVkZ2VJbnNldHMuc3ltbWV0cmljKGhvcml6b250YWw6IDgsIHZlcnRpY2FsOiAzKQogICAgICAgICAgOiBjb25zdCBFZGdlSW5zZXRzLnN5bW1ldHJpYyh2ZXJ0aWNhbDogMiksCiAgICAgIHBhZGRpbmc6IGV4cGFuZGVkID8gdGhlbWUuaXRlbVBhZGRpbmcgOiBFZGdlSW5zZXRzLnplcm8sCiIiIgppZiBvbGRfbWV0cmljcyBub3QgaW4gdGV4dDoKICAgIHJhaXNlIFN5c3RlbUV4aXQoJ0V4cGVjdGVkIHZlcnRpY2FsIGRlc3RpbmF0aW9uIG1ldHJpY3Mgd2VyZSBub3QgZm91bmQnKQp0ZXh0ID0gdGV4dC5yZXBsYWNlKG9sZF9tZXRyaWNzLCBuZXdfbWV0cmljcywgMSkKc2NhZmZvbGQud3JpdGVfdGV4dCh0ZXh0KQoKY29udHJvbGxlcl90ZXN0cyA9IFBhdGgoJ3Rlc3QvYWRhcHRpdmVfbmF2X2NvbnRyb2xsZXJfdGVzdC5kYXJ0JykKY29udHJvbGxlcl90ZXN0cy53cml0ZV90ZXh0KCIiImltcG9ydCAncGFja2FnZTphZGFwdGF0aXZlX25hdl9iYXIvYWRhcHRhdGl2ZV9uYXZfYmFyLmRhcnQnOwppbXBvcnQgJ3BhY2thZ2U6Zmx1dHRlcl90ZXN0L2ZsdXR0ZXJfdGVzdC5kYXJ0JzsKCnZvaWQgbWFpbigpIHsKICB0ZXN0KCdjb250cm9sbGVyIGtlZXBzIHByZXNlbnRhdGlvbiBleHBhbnNpb24gYnkgZGVmYXVsdCcsICgpIHsKICAgIGZpbmFsIEFkYXB0aXZlTmF2Q29udHJvbGxlciBjb250cm9sbGVyID0gQWRhcHRpdmVOYXZDb250cm9sbGVyKCk7CgogICAgZXhwZWN0KGNvbnRyb2xsZXIuZXhwYW5kZWQsIGlzTnVsbCk7CiAgICBleHBlY3QoY29udHJvbGxlci5oYXNFeHBhbnNpb25PdmVycmlkZSwgaXNGYWxzZSk7CgogICAgY29udHJvbGxlci5kaXNwb3NlKCk7CiAgfSk7CgogIHRlc3QoJ2NvbnRyb2xsZXIgY2hhbmdlcyB2aXNpYmlsaXR5IGFuZCBleHBhbnNpb24gaW5kZXBlbmRlbnRseScsICgpIHsKICAgIGZpbmFsIEFkYXB0aXZlTmF2Q29udHJvbGxlciBjb250cm9sbGVyID0gQWRhcHRpdmVOYXZDb250cm9sbGVyKCk7CiAgICBpbnQgbm90aWZpY2F0aW9ucyA9IDA7CiAgICBjb250cm9sbGVyLmFkZExpc3RlbmVyKCgpID0+IG5vdGlmaWNhdGlvbnMrKyk7CgogICAgY29udHJvbGxlci5oaWRlKCk7CiAgICBleHBlY3QoY29udHJvbGxlci52aXNpYmxlLCBpc0ZhbHNlKTsKCiAgICBjb250cm9sbGVyLmNvbGxhcHNlKCk7CiAgICBleHBlY3QoY29udHJvbGxlci5leHBhbmRlZCwgaXNGYWxzZSk7CgogICAgY29udHJvbGxlci5zaG93KCk7CiAgICBjb250cm9sbGVyLmV4cGFuZCgpOwogICAgZXhwZWN0KGNvbnRyb2xsZXIudmlzaWJsZSwgaXNUcnVlKTsKICAgIGV4cGVjdChjb250cm9sbGVyLmV4cGFuZGVkLCBpc1RydWUpOwogICAgZXhwZWN0KG5vdGlmaWNhdGlvbnMsIDQpOwoKICAgIGNvbnRyb2xsZXIuY2xlYXJFeHBhbnNpb25PdmVycmlkZSgpOwogICAgZXhwZWN0KGNvbnRyb2xsZXIuZXhwYW5kZWQsIGlzTnVsbCk7CiAgICBleHBlY3Qobm90aWZpY2F0aW9ucywgNSk7CgogICAgY29udHJvbGxlci5kaXNwb3NlKCk7CiAgfSk7CgogIHRlc3QoJ3NldHRpbmcgYW4gZXhpc3RpbmcgZXhwbGljaXQgc3RhdGUgZG9lcyBub3Qgbm90aWZ5IGxpc3RlbmVycycsICgpIHsKICAgIGZpbmFsIEFkYXB0aXZlTmF2Q29udHJvbGxlciBjb250cm9sbGVyID0gQWRhcHRpdmVOYXZDb250cm9sbGVyKAogICAgICBleHBhbmRlZDogdHJ1ZSwKICAgICk7CiAgICBpbnQgbm90aWZpY2F0aW9ucyA9IDA7CiAgICBjb250cm9sbGVyLmFkZExpc3RlbmVyKCgpID0+IG5vdGlmaWNhdGlvbnMrKyk7CgogICAgY29udHJvbGxlci5zaG93KCk7CiAgICBjb250cm9sbGVyLmV4cGFuZCgpOwoKICAgIGV4cGVjdChub3RpZmljYXRpb25zLCAwKTsKICAgIGNvbnRyb2xsZXIuZGlzcG9zZSgpOwogIH0pOwoKICB0ZXN0KCdmaXJzdCB0b2dnbGUgaXMgcmVsYXRpdmUgdG8gdGhlIGFjdGl2ZSBwcmVzZW50YXRpb24nLCAoKSB7CiAgICBmaW5hbCBBZGFwdGl2ZU5hdkNvbnRyb2xsZXIgY29udHJvbGxlciA9IEFkYXB0aXZlTmF2Q29udHJvbGxlcigpOwoKICAgIGNvbnRyb2xsZXIudG9nZ2xlRXhwYW5kZWQodHJ1ZSk7CiAgICBleHBlY3QoY29udHJvbGxlci5leHBhbmRlZCwgaXNGYWxzZSk7CgogICAgY29udHJvbGxlci5jbGVhckV4cGFuc2lvbk92ZXJyaWRlKCk7CiAgICBjb250cm9sbGVyLnRvZ2dsZUV4cGFuZGVkKGZhbHNlKTsKICAgIGV4cGVjdChjb250cm9sbGVyLmV4cGFuZGVkLCBpc1RydWUpOwoKICAgIGNvbnRyb2xsZXIuZGlzcG9zZSgpOwogIH0pOwp9CiIiIikKCnNjYWZmb2xkX3Rlc3RzID0gUGF0aCgndGVzdC9hZGFwdGl2ZV9uYXZfc2NhZmZvbGRfdGVzdC5kYXJ0JykKdGVzdF90ZXh0ID0gc2NhZmZvbGRfdGVzdHMucmVhZF90ZXh0KCkKbWFya2VyID0gIiAgdGVzdFdpZGdldHMoJ3VzZXMgY29sbGFwc2libGUgc2lkZWJhciBpbiBleHBhbmRlZCB3aW5kb3dzJywgKFxuIgpyZWdyZXNzaW9uID0gIiIiICB0ZXN0V2lkZ2V0cygnaW5kaWNhdG9yIHJhaWwgc3RheXMgY29tcGFjdCB3aXRoIGEgZGVmYXVsdCBjb250cm9sbGVyJywgKAogICAgV2lkZ2V0VGVzdGVyIHRlc3RlciwKICApIGFzeW5jIHsKICAgIGF3YWl0IF9zZXRTdXJmYWNlKHRlc3RlciwgY29uc3QgU2l6ZSg3MDAsIDgwMCkpOwogICAgZmluYWwgQWRhcHRpdmVOYXZDb250cm9sbGVyIGNvbnRyb2xsZXIgPSBBZGFwdGl2ZU5hdkNvbnRyb2xsZXIoKTsKICAgIGFkZFRlYXJEb3duKGNvbnRyb2xsZXIuZGlzcG9zZSk7CgogICAgYXdhaXQgdGVzdGVyLnB1bXBXaWRnZXQoCiAgICAgIF90ZXN0QXBwKAogICAgICAgIGNvbnRyb2xsZXI6IGNvbnRyb2xsZXIsCiAgICAgICAgb25TZWxlY3RlZDogKF8pIHt9LAogICAgICAgIG1lZGl1bTogY29uc3QgQWRhcHRpdmVOYXZQcmVzZW50YXRpb24ucmFpbCgKICAgICAgICAgIHJhaWxTdHlsZTogQWRhcHRpdmVSYWlsU3R5bGUuaW5kaWNhdG9yLAogICAgICAgICksCiAgICAgICksCiAgICApOwoKICAgIGV4cGVjdCh0ZXN0ZXIudGFrZUV4Y2VwdGlvbigpLCBpc051bGwpOwogICAgZXhwZWN0KGZpbmQuYnlUeXBlKE5hdmlnYXRpb25SYWlsKSwgZmluZHNOb3RoaW5nKTsKCiAgICBmaW5hbCBkb3VibGUgaG9tZVkgPSB0ZXN0ZXIuZ2V0Q2VudGVyKGZpbmQuYnlJY29uKEljb25zLmhvbWUpKS5keTsKICAgIGZpbmFsIGRvdWJsZSBzZWFyY2hZID0gdGVzdGVyLmdldENlbnRlcihmaW5kLmJ5SWNvbihJY29ucy5zZWFyY2hfb3V0bGluZWQpKS5keTsKICAgIGV4cGVjdChzZWFyY2hZIC0gaG9tZVksIGxlc3NUaGFuT3JFcXVhbFRvKDU2KSk7CiAgfSk7CgoiIiIKaWYgcmVncmVzc2lvbiBub3QgaW4gdGVzdF90ZXh0OgogICAgaWYgbWFya2VyIG5vdCBpbiB0ZXN0X3RleHQ6CiAgICAgICAgcmFpc2UgU3lzdGVtRXhpdCgnRXhwZWN0ZWQgc2NhZmZvbGQgdGVzdCBpbnNlcnRpb24gbWFya2VyIHdhcyBub3QgZm91bmQnKQogICAgdGVzdF90ZXh0ID0gdGVzdF90ZXh0LnJlcGxhY2UobWFya2VyLCByZWdyZXNzaW9uICsgbWFya2VyLCAxKQoKb2xkX3NpZ25hdHVyZSA9ICIiIldpZGdldCBfdGVzdEFwcCh7CiAgcmVxdWlyZWQgVmFsdWVDaGFuZ2VkPGludD4gb25TZWxlY3RlZCwKICBWYWx1ZUNoYW5nZWQ8aW50Pj8gb25SZXNlbGVjdGVkLAogIEFkYXB0aXZlTmF2UHJlc2VudGF0aW9uIGNvbXBhY3QgPSBjb25zdCBBZGFwdGl2ZU5hdlByZXNlbnRhdGlvbi5ib3R0b20oKSwKfSkgewoiIiIKbmV3X3NpZ25hdHVyZSA9ICIiIldpZGdldCBfdGVzdEFwcCh7CiAgcmVxdWlyZWQgVmFsdWVDaGFuZ2VkPGludD4gb25TZWxlY3RlZCwKICBWYWx1ZUNoYW5nZWQ8aW50Pj8gb25SZXNlbGVjdGVkLAogIEFkYXB0aXZlTmF2Q29udHJvbGxlcj8gY29udHJvbGxlciwKICBBZGFwdGl2ZU5hdlByZXNlbnRhdGlvbiBjb21wYWN0ID0gY29uc3QgQWRhcHRpdmVOYXZQcmVzZW50YXRpb24uYm90dG9tKCksCiAgQWRhcHRpdmVOYXZQcmVzZW50YXRpb24gbWVkaXVtID0gY29uc3QgQWRhcHRpdmVOYXZQcmVzZW50YXRpb24ucmFpbCgpLAp9KSB7CiIiIgppZiBvbGRfc2lnbmF0dXJlIG5vdCBpbiB0ZXN0X3RleHQ6CiAgICByYWlzZSBTeXN0ZW1FeGl0KCdFeHBlY3RlZCBfdGVzdEFwcCBzaWduYXR1cmUgd2FzIG5vdCBmb3VuZCcpCnRlc3RfdGV4dCA9IHRlc3RfdGV4dC5yZXBsYWNlKG9sZF9zaWduYXR1cmUsIG5ld19zaWduYXR1cmUsIDEpCgpvbGRfYXJncyA9ICIiIiAgICAgICAgb25EZXN0aW5hdGlvblNlbGVjdGVkOiBvblNlbGVjdGVkLAogICAgICAgIG9uRGVzdGluYXRpb25SZXNlbGVjdGVkOiBvblJlc2VsZWN0ZWQsCiAgICAgICAgY29tcGFjdDogY29tcGFjdCwKICAgICAgICBib2R5OiBjb25zdCBDb2xvcmVkQm94KGNvbG9yOiBDb2xvcigweEZGRkZGRkZGKSksCiIiIgpuZXdfYXJncyA9ICIiIiAgICAgICAgb25EZXN0aW5hdGlvblNlbGVjdGVkOiBvblNlbGVjdGVkLAogICAgICAgIG9uRGVzdGluYXRpb25SZXNlbGVjdGVkOiBvblJlc2VsZWN0ZWQsCiAgICAgICAgY29udHJvbGxlcjogY29udHJvbGxlciwKICAgICAgICBjb21wYWN0OiBjb21wYWN0LAogICAgICAgIG1lZGl1bTogbWVkaXVtLAogICAgICAgIGJvZHk6IGNvbnN0IENvbG9yZWRCb3goY29sb3I6IENvbG9yKDB4RkZGRkZGRkYpKSwKIiIiCmlmIG9sZF9hcmdzIG5vdCBpbiB0ZXN0X3RleHQ6CiAgICByYWlzZSBTeXN0ZW1FeGl0KCdFeHBlY3RlZCBfdGVzdEFwcCBzY2FmZm9sZCBhcmd1bWVudHMgd2VyZSBub3QgZm91bmQnKQp0ZXN0X3RleHQgPSB0ZXN0X3RleHQucmVwbGFjZShvbGRfYXJncywgbmV3X2FyZ3MsIDEpCnNjYWZmb2xkX3Rlc3RzLndyaXRlX3RleHQodGVzdF90ZXh0KQoKcmVhZG1lID0gUGF0aCgnUkVBRE1FLm1kJykKcmVhZG1lX3RleHQgPSByZWFkbWUucmVhZF90ZXh0KCkKb2xkX3JlYWRtZSA9ICIiImNvbnRyb2xsZXIudG9nZ2xlRXhwYW5kZWQoKTsKYGBgCgpUaGlzIHNlcGFyYXRpb24gcHJldmVudHMgdHdvIGluZGVwZW5kZW50IHNvdXJjZXMgb2YgdHJ1dGggZm9yIHRoZSBzZWxlY3RlZCByb3V0ZS4KIiIiCm5ld19yZWFkbWUgPSAiIiJjb250cm9sbGVyLnRvZ2dsZUV4cGFuZGVkKCk7CmNvbnRyb2xsZXIuY2xlYXJFeHBhbnNpb25PdmVycmlkZSgpOwpgYGAKCkEgY29udHJvbGxlciBjcmVhdGVkIHdpdGhvdXQgYW4gYGV4cGFuZGVkYCB2YWx1ZSBkb2VzIG5vdCBmb3JjZSBhbGwgYWRhcHRpdmUKc3VyZmFjZXMgaW50byB0aGUgc2FtZSBzdGF0ZS4gRWFjaCBwcmVzZW50YXRpb24ga2VlcHMgaXRzIG93biBgZXh0ZW5kZWRgCmRlZmF1bHQgdW50aWwgYGV4cGFuZCgpYCwgYGNvbGxhcHNlKClgLCBvciBgdG9nZ2xlRXhwYW5kZWQoKWAgY3JlYXRlcyBhbgpvdmVycmlkZS4gYGNsZWFyRXhwYW5zaW9uT3ZlcnJpZGUoKWAgcmVzdG9yZXMgdGhlIHBlci1wcmVzZW50YXRpb24gZGVmYXVsdHMuCgpUaGlzIHNlcGFyYXRpb24gcHJldmVudHMgdHdvIGluZGVwZW5kZW50IHNvdXJjZXMgb2YgdHJ1dGggZm9yIHRoZSBzZWxlY3RlZCByb3V0ZS4KIiIiCmlmIG9sZF9yZWFkbWUgbm90IGluIHJlYWRtZV90ZXh0OgogICAgcmFpc2UgU3lzdGVtRXhpdCgnRXhwZWN0ZWQgUkVBRE1FIGNvbnRyb2xsZXIgc2VjdGlvbiB3YXMgbm90IGZvdW5kJykKcmVhZG1lLndyaXRlX3RleHQocmVhZG1lX3RleHQucmVwbGFjZShvbGRfcmVhZG1lLCBuZXdfcmVhZG1lLCAxKSkKCmNoYW5nZWxvZyA9IFBhdGgoJ0NIQU5HRUxPRy5tZCcpCmNoYW5nZWxvZ190ZXh0ID0gY2hhbmdlbG9nLnJlYWRfdGV4dCgpCmJ1bGxldCA9ICctIEZpeGVkIG5hcnJvdyByYWlsIG92ZXJmbG93LCBjb21wYWN0IGluZGljYXRvciBmb290cHJpbnQsIGFuZCB2ZXJ0aWNhbCBkZXN0aW5hdGlvbiBzcGFjaW5nLlxuJwppZiBidWxsZXQgbm90IGluIGNoYW5nZWxvZ190ZXh0OgogICAgY2hhbmdlbG9nX3RleHQgKz0gYnVsbGV0CmNoYW5nZWxvZy53cml0ZV90ZXh0KGNoYW5nZWxvZ190ZXh0KQo=' | base64 -d > /tmp/adaptive_nav_fix.py
-          python3 /tmp/adaptive_nav_fix.py
-          dart format lib test
+          if ! command -v xz >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y xz-utils
+          fi
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.0'
+          channel: stable
+          cache: true
 
       - name: Install dependencies
         run: flutter pub get
@@ -43,16 +95,70 @@ jobs:
       - name: Test package
         run: flutter test
 
-      - name: Analyze example
-        working-directory: example
-        run: |
-          flutter pub get
-          flutter analyze
+  platform-builds:
+    name: Builds / Web JS + Web Wasm + Linux + Android
+    runs-on:
+      - self-hosted
+      - devs-flutter-plugin-ci
 
-      - name: Commit fix
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Prepare Linux build dependencies
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add lib/src/adaptive_nav_controller.dart lib/src/adaptive_nav_scaffold.dart test/adaptive_nav_controller_test.dart test/adaptive_nav_scaffold_test.dart README.md CHANGELOG.md
-          git commit -m "fix: tighten adaptive rail layout"
-          git push origin HEAD:main
+          if ! command -v xz >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y xz-utils
+          fi
+          if ! pkg-config --exists gtk+-3.0 2>/dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev
+          fi
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.2'
+          channel: stable
+          cache: true
+
+      - name: Install package dependencies
+        run: flutter pub get
+
+      - name: Create build harness
+        run: |
+          rm -rf .ci_example
+          cp -R example .ci_example
+          cd .ci_example
+          flutter create --platforms=android,web,linux .
+          flutter pub get
+
+      - name: Build Web JavaScript
+        working-directory: .ci_example
+        run: flutter build web --release
+
+      - name: Build Web Wasm
+        working-directory: .ci_example
+        run: flutter build web --wasm --release
+
+      - name: Build Linux
+        working-directory: .ci_example
+        run: |
+          flutter config --enable-linux-desktop
+          flutter build linux --debug
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
+
+      - name: Build Android
+        working-directory: .ci_example
+        run: flutter build apk --debug
