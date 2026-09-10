@@ -9,6 +9,7 @@ import 'adaptive_nav_motion.dart';
 import 'adaptive_nav_presentation.dart';
 import 'adaptive_nav_scroll_behavior.dart';
 import 'adaptive_nav_theme.dart';
+import 'adaptive_reference_bottom_nav_renderer.dart';
 import 'adaptive_vertical_nav_renderer.dart';
 
 /// A router-agnostic adaptive navigation layout with interchangeable visual
@@ -188,11 +189,19 @@ class _AdaptiveNavScaffoldState extends State<AdaptiveNavScaffold> {
     AdaptiveNavBarConfig config,
     Duration duration,
   ) {
-    final AdaptiveBottomNavRenderer renderer = AdaptiveBottomNavRenderer(
-      config: config,
-      presentation: presentation,
-      motion: widget.motion,
-    );
+    final bool useReferenceRenderer =
+        AdaptiveReferenceBottomNavRenderer.supports(presentation.bottomStyle);
+    final Widget renderer = useReferenceRenderer
+        ? AdaptiveReferenceBottomNavRenderer(
+            config: config,
+            presentation: presentation,
+            motion: widget.motion,
+          )
+        : AdaptiveBottomNavRenderer(
+            config: config,
+            presentation: presentation,
+            motion: widget.motion,
+          );
 
     if (presentation.bottomStyle == AdaptiveBottomNavStyle.material3 &&
         presentation.raisedItem == null) {
@@ -211,7 +220,9 @@ class _AdaptiveNavScaffoldState extends State<AdaptiveNavScaffold> {
       );
     }
 
-    final double footprint = AdaptiveBottomNavRenderer.footprintFor(presentation);
+    final double footprint = useReferenceRenderer
+        ? AdaptiveReferenceBottomNavRenderer.footprintFor(presentation)
+        : AdaptiveBottomNavRenderer.footprintFor(presentation);
     final double safeBottom = MediaQuery.viewPaddingOf(context).bottom;
     final Widget floatingBar = _VisibilityMotion(
       visible: _visible,
