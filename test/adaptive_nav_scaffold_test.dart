@@ -41,6 +41,31 @@ void main() {
     expect(find.byType(NavigationBar), findsNothing);
   });
 
+  testWidgets('indicator rail stays compact with a default controller', (
+    WidgetTester tester,
+  ) async {
+    await _setSurface(tester, const Size(700, 800));
+    final AdaptiveNavController controller = AdaptiveNavController();
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      _testApp(
+        controller: controller,
+        onSelected: (_) {},
+        medium: const AdaptiveNavPresentation.rail(
+          railStyle: AdaptiveRailStyle.indicator,
+        ),
+      ),
+    );
+
+    expect(tester.takeException(), isNull);
+    expect(find.byType(NavigationRail), findsNothing);
+
+    final double homeY = tester.getCenter(find.byIcon(Icons.home)).dy;
+    final double searchY = tester.getCenter(find.byIcon(Icons.search_outlined)).dy;
+    expect(searchY - homeY, lessThanOrEqualTo(56));
+  });
+
   testWidgets('uses collapsible sidebar in expanded windows', (
     WidgetTester tester,
   ) async {
@@ -130,7 +155,9 @@ void main() {
 Widget _testApp({
   required ValueChanged<int> onSelected,
   ValueChanged<int>? onReselected,
+  AdaptiveNavController? controller,
   AdaptiveNavPresentation compact = const AdaptiveNavPresentation.bottom(),
+  AdaptiveNavPresentation medium = const AdaptiveNavPresentation.rail(),
 }) {
   return MaterialApp(
     home: Scaffold(
@@ -139,7 +166,9 @@ Widget _testApp({
         selectedIndex: 0,
         onDestinationSelected: onSelected,
         onDestinationReselected: onReselected,
+        controller: controller,
         compact: compact,
+        medium: medium,
         body: const ColoredBox(color: Color(0xFFFFFFFF)),
       ),
     ),
