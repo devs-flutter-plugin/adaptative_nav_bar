@@ -7,6 +7,18 @@ const List<AdaptiveNavDestination> _destinations = <AdaptiveNavDestination>[
   AdaptiveNavDestination(icon: Icon(Icons.search), label: 'Search'),
 ];
 
+const List<AdaptiveNavDestination> _fiveDestinations =
+    <AdaptiveNavDestination>[
+      AdaptiveNavDestination(icon: Icon(Icons.home_outlined), label: 'Home'),
+      AdaptiveNavDestination(icon: Icon(Icons.explore_outlined), label: 'Discover'),
+      AdaptiveNavDestination(icon: Icon(Icons.swap_horiz), label: 'Trade'),
+      AdaptiveNavDestination(icon: Icon(Icons.hub_outlined), label: 'Grow'),
+      AdaptiveNavDestination(
+        icon: Icon(Icons.account_balance_wallet_outlined),
+        label: 'Assets',
+      ),
+    ];
+
 void main() {
   for (final AdaptiveBottomNavStyle style in AdaptiveBottomNavStyle.values) {
     testWidgets('bottom style ${style.name} renders and is interactive', (
@@ -32,8 +44,65 @@ void main() {
       await tester.tap(find.byIcon(Icons.search));
       await tester.pumpAndSettle();
       expect(selected, 1);
+      expect(tester.takeException(), isNull);
     });
   }
+
+  testWidgets('centerRaised keeps the middle destination above the base row', (
+    WidgetTester tester,
+  ) async {
+    await _setSurface(tester, const Size(390, 800));
+    int selected = 0;
+
+    await tester.pumpWidget(
+      _testApp(
+        builder: (StateSetter setState) => AdaptiveNavScaffold(
+          selectedIndex: selected,
+          destinations: _fiveDestinations,
+          compact: const AdaptiveNavPresentation.bottom(
+            bottomStyle: AdaptiveBottomNavStyle.centerRaised,
+          ),
+          onDestinationSelected: (int index) {
+            setState(() => selected = index);
+          },
+          body: const SizedBox.expand(),
+        ),
+      ),
+    );
+
+    final double homeY = tester.getCenter(find.byIcon(Icons.home_outlined)).dy;
+    final double tradeY = tester.getCenter(find.byIcon(Icons.swap_horiz)).dy;
+    expect(tradeY, lessThan(homeY));
+
+    await tester.tap(find.byIcon(Icons.swap_horiz));
+    await tester.pumpAndSettle();
+    expect(selected, 2);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('raised item can be composed with google style', (
+    WidgetTester tester,
+  ) async {
+    await _setSurface(tester, const Size(390, 800));
+
+    await tester.pumpWidget(
+      _testApp(
+        builder: (StateSetter setState) => AdaptiveNavScaffold(
+          selectedIndex: 0,
+          destinations: _fiveDestinations,
+          compact: const AdaptiveNavPresentation.bottom(
+            bottomStyle: AdaptiveBottomNavStyle.google,
+            raisedItem: AdaptiveRaisedNavItem(index: 2),
+          ),
+          onDestinationSelected: (_) {},
+          body: const SizedBox.expand(),
+        ),
+      ),
+    );
+
+    expect(find.byIcon(Icons.swap_horiz), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 
   for (final AdaptiveRailStyle style in AdaptiveRailStyle.values) {
     testWidgets('rail style ${style.name} renders and is interactive', (
