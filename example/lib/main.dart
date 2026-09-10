@@ -17,40 +17,27 @@ final GoRouter _router = GoRouter(
             return DemoShell(navigationShell: navigationShell);
           },
       branches: <StatefulShellBranch>[
-        StatefulShellBranch(
-          routes: <RouteBase>[
-            GoRoute(
-              path: '/home',
-              builder: (BuildContext context, GoRouterState state) =>
-                  const DemoPage(title: 'Home', icon: Icons.home_rounded),
-            ),
-          ],
-        ),
-        StatefulShellBranch(
-          routes: <RouteBase>[
-            GoRoute(
-              path: '/appointments',
-              builder: (BuildContext context, GoRouterState state) =>
-                  const DemoPage(
-                    title: 'Appointments',
-                    icon: Icons.calendar_month_rounded,
-                  ),
-            ),
-          ],
-        ),
-        StatefulShellBranch(
-          routes: <RouteBase>[
-            GoRoute(
-              path: '/profile',
-              builder: (BuildContext context, GoRouterState state) =>
-                  const DemoPage(title: 'Profile', icon: Icons.person_rounded),
-            ),
-          ],
-        ),
+        _branch('/home', 'Home', Icons.home_rounded),
+        _branch('/discover', 'Discover', Icons.explore_rounded),
+        _branch('/trade', 'Trade', Icons.swap_horiz_rounded),
+        _branch('/grow', 'Grow', Icons.hub_rounded),
+        _branch('/assets', 'Assets', Icons.account_balance_wallet_rounded),
       ],
     ),
   ],
 );
+
+StatefulShellBranch _branch(String path, String title, IconData icon) {
+  return StatefulShellBranch(
+    routes: <RouteBase>[
+      GoRoute(
+        path: path,
+        builder: (BuildContext context, GoRouterState state) =>
+            DemoPage(title: title, icon: icon),
+      ),
+    ],
+  );
+}
 
 class ExampleApp extends StatelessWidget {
   const ExampleApp({super.key});
@@ -81,7 +68,7 @@ class DemoShell extends StatefulWidget {
 
 class _DemoShellState extends State<DemoShell> {
   final AdaptiveNavController _controller = AdaptiveNavController();
-  AdaptiveBottomNavStyle _bottomStyle = AdaptiveBottomNavStyle.floating;
+  AdaptiveBottomNavStyle _bottomStyle = AdaptiveBottomNavStyle.centerRaised;
 
   static const List<AdaptiveNavDestination> _destinations =
       <AdaptiveNavDestination>[
@@ -91,15 +78,25 @@ class _DemoShellState extends State<DemoShell> {
           label: 'Home',
         ),
         AdaptiveNavDestination(
-          icon: Icon(Icons.calendar_month_outlined),
-          selectedIcon: Icon(Icons.calendar_month_rounded),
-          label: 'Agenda',
-          badge: Text('3'),
+          icon: Icon(Icons.explore_outlined),
+          selectedIcon: Icon(Icons.explore_rounded),
+          label: 'Discover',
         ),
         AdaptiveNavDestination(
-          icon: Icon(Icons.person_outline),
-          selectedIcon: Icon(Icons.person_rounded),
-          label: 'Profile',
+          icon: Icon(Icons.swap_horiz_outlined),
+          selectedIcon: Icon(Icons.swap_horiz_rounded),
+          label: 'Trade',
+        ),
+        AdaptiveNavDestination(
+          icon: Icon(Icons.hub_outlined),
+          selectedIcon: Icon(Icons.hub_rounded),
+          label: 'Grow',
+        ),
+        AdaptiveNavDestination(
+          icon: Icon(Icons.account_balance_wallet_outlined),
+          selectedIcon: Icon(Icons.account_balance_wallet_rounded),
+          label: 'Assets',
+          badge: Text('3'),
         ),
       ];
 
@@ -148,6 +145,14 @@ class _DemoShellState extends State<DemoShell> {
         compact: AdaptiveNavPresentation.bottom(
           bottomStyle: _bottomStyle,
           maxWidth: 520,
+          raisedItem: _bottomStyle == AdaptiveBottomNavStyle.centerRaised
+              ? const AdaptiveRaisedNavItem(
+                  index: 2,
+                  size: 60,
+                  offset: 20,
+                  elevation: 7,
+                )
+              : null,
         ),
         medium: const AdaptiveNavPresentation.rail(
           railStyle: AdaptiveRailStyle.indicator,
