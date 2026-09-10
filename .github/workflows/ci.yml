@@ -44,7 +44,7 @@ jobs:
           path = Path('lib/src/adaptive_reference_bottom_nav_renderer.dart')
           source = path.read_text()
 
-          def replace_call_containing(source, needle, replacement):
+          def replace_call_containing(source, needle, replacement_lines):
               needle_at = source.index(needle)
               start = source.rfind('AnimatedSize(', 0, needle_at)
               if start == -1:
@@ -65,50 +65,54 @@ jobs:
                           break
               if end is None:
                   raise RuntimeError('Expected AnimatedSize was not balanced')
-              block = '\n'.join(indent + line for line in replacement.splitlines())
+              block = '\n'.join(indent + line for line in replacement_lines)
               return source[:line_start] + block + source[end:]
 
           source = replace_call_containing(
               source,
               "'google-selected-label-${destination.label}'",
-              """if (selected)
-  Flexible(
-    child: Padding(
-      padding: EdgeInsetsDirectional.only(start: style.gap),
-      child: Text(
-        destination.label,
-        key: ValueKey<String>(
-          'google-selected-label-${destination.label}',
-        ),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: config.theme.labelTextStyle?.copyWith(
-          color: foreground,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    ),
-  ),""",
+              [
+                  'if (selected)',
+                  '  Flexible(',
+                  '    child: Padding(',
+                  '      padding: EdgeInsetsDirectional.only(start: style.gap),',
+                  '      child: Text(',
+                  '        destination.label,',
+                  '        key: ValueKey<String>(',
+                  "          'google-selected-label-${destination.label}',",
+                  '        ),',
+                  '        maxLines: 1,',
+                  '        overflow: TextOverflow.ellipsis,',
+                  '        style: config.theme.labelTextStyle?.copyWith(',
+                  '          color: foreground,',
+                  '          fontWeight: FontWeight.w600,',
+                  '        ),',
+                  '      ),',
+                  '    ),',
+                  '  ),',
+              ],
           )
 
           source = replace_call_containing(
               source,
               'child: FlexibleLabel(',
-              """if (selected)
-  Flexible(
-    child: Padding(
-      padding: EdgeInsetsDirectional.only(start: gap),
-      child: Text(
-        destination.label,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: config.theme.labelTextStyle?.copyWith(
-          color: foreground,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    ),
-  ),""",
+              [
+                  'if (selected)',
+                  '  Flexible(',
+                  '    child: Padding(',
+                  '      padding: EdgeInsetsDirectional.only(start: gap),',
+                  '      child: Text(',
+                  '        destination.label,',
+                  '        maxLines: 1,',
+                  '        overflow: TextOverflow.ellipsis,',
+                  '        style: config.theme.labelTextStyle?.copyWith(',
+                  '          color: foreground,',
+                  '          fontWeight: FontWeight.w600,',
+                  '        ),',
+                  '      ),',
+                  '    ),',
+                  '  ),',
+              ],
           )
 
           helper_start = source.index('class FlexibleLabel extends StatelessWidget')
