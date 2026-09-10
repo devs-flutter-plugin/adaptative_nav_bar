@@ -43,86 +43,74 @@ jobs:
           path = Path('lib/src/adaptive_reference_bottom_nav_renderer.dart')
           text = path.read_text()
 
-          old_google = '''              AnimatedSize(
-                duration: motion.duration,
-                curve: motion.curve,
-                child: selected
-                    ? Padding(
-                        padding: EdgeInsetsDirectional.only(start: style.gap),
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(maxWidth: style.maxLabelWidth),
-                          child: Text(
-                            destination.label,
-                            key: ValueKey<String>(
-                              'google-selected-label-${destination.label}',
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: config.theme.labelTextStyle?.copyWith(
-                              color: foreground,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      )
-                    : const SizedBox.shrink(),
-              ),'''
-          new_google = '''              if (selected)
-                Flexible(
-                  child: Padding(
-                    padding: EdgeInsetsDirectional.only(start: style.gap),
-                    child: Text(
-                      destination.label,
-                      key: ValueKey<String>(
-                        'google-selected-label-${destination.label}',
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: config.theme.labelTextStyle?.copyWith(
-                        color: foreground,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),'''
-          if old_google not in text:
-              raise SystemExit('Google label block did not match expected source')
-          text = text.replace(old_google, new_google, 1)
+          def replace_enclosing_call(source, needle, replacement):
+              needle_pos = source.index(needle)
+              start = source.rfind('AnimatedSize(', 0, needle_pos)
+              if start < 0:
+                  raise SystemExit(f'AnimatedSize before {needle!r} not found')
+              depth = 0
+              end = None
+              for index in range(start, len(source)):
+                  char = source[index]
+                  if char == '(':
+                      depth += 1
+                  elif char == ')':
+                      depth -= 1
+                      if depth == 0:
+                          end = index + 1
+                          if end < len(source) and source[end] == ',':
+                              end += 1
+                          break
+              if end is None:
+                  raise SystemExit(f'Unbalanced call before {needle!r}')
+              line_start = source.rfind('\n', 0, start) + 1
+              indent = source[line_start:start]
+              replacement = '\n'.join(
+                  indent + line if line else line
+                  for line in replacement.splitlines()
+              )
+              return source[:line_start] + replacement + source[end:]
 
-          old_persistent = '''              AnimatedSize(
-                duration: motion.duration,
-                curve: motion.curve,
-                child: selected
-                    ? Padding(
-                        padding: EdgeInsetsDirectional.only(start: gap),
-                        child: FlexibleLabel(
-                          label: destination.label,
-                          style: config.theme.labelTextStyle?.copyWith(
-                            color: foreground,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      )
-                    : const SizedBox.shrink(),
-              ),'''
-          new_persistent = '''              if (selected)
-                Flexible(
-                  child: Padding(
-                    padding: EdgeInsetsDirectional.only(start: gap),
-                    child: Text(
-                      destination.label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: config.theme.labelTextStyle?.copyWith(
-                        color: foreground,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),'''
-          if old_persistent not in text:
-              raise SystemExit('Persistent label block did not match expected source')
-          text = text.replace(old_persistent, new_persistent, 1)
+          google = '''if (selected)
+  Flexible(
+    child: Padding(
+      padding: EdgeInsetsDirectional.only(start: style.gap),
+      child: Text(
+        destination.label,
+        key: ValueKey<String>(
+          'google-selected-label-${destination.label}',
+        ),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: config.theme.labelTextStyle?.copyWith(
+          color: foreground,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    ),
+  ),'''
+          text = replace_enclosing_call(
+              text,
+              "'google-selected-label-${destination.label}'",
+              google,
+          )
+
+          persistent = '''if (selected)
+  Flexible(
+    child: Padding(
+      padding: EdgeInsetsDirectional.only(start: gap),
+      child: Text(
+        destination.label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: config.theme.labelTextStyle?.copyWith(
+          color: foreground,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    ),
+  ),'''
+          text = replace_enclosing_call(text, 'child: FlexibleLabel(', persistent)
           path.write_text(text)
           PY
 
