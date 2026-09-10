@@ -43,41 +43,21 @@ jobs:
         working-directory: example
         run: flutter pub get
 
-      - name: Apply analyzer cleanup
+      - name: Apply notch interaction fix
         if: github.event_name == 'push'
         run: |
           python3 <<'PY'
           from pathlib import Path
-          import re
 
-          for file_name in [
-              'lib/src/adaptive_nav_bar_config.dart',
-              'lib/src/adaptive_nav_destination.dart',
-              'lib/src/adaptive_nav_motion.dart',
-              'lib/src/adaptive_nav_presentation.dart',
-              'lib/src/adaptive_nav_scaffold.dart',
-              'lib/src/adaptive_nav_scroll_behavior.dart',
-              'lib/src/adaptive_nav_theme.dart',
-          ]:
-              path = Path(file_name)
-              text = path.read_text()
-              text = text.replace("import 'package:flutter/foundation.dart';\n", '')
-              path.write_text(text)
-
-          controller = Path('lib/src/adaptive_nav_controller.dart')
-          text = controller.read_text()
-          marker = '// ignore_for_file: prefer_initializing_formals\n\n'
-          if not text.startswith(marker):
-              controller.write_text(marker + text)
-
-          scaffold = Path('lib/src/adaptive_nav_scaffold.dart')
-          text = scaffold.read_text()
-          pattern = r'for \(final \(int index, AdaptiveNavDestination destination\)\s+in config\.destinations\.indexed\)\s+NavigationDestination\('
-          replacement = 'for (final AdaptiveNavDestination destination in config.destinations)\n          NavigationDestination('
-          text, count = re.subn(pattern, replacement, text, count=1)
-          if count != 1:
-              raise SystemExit(f'Expected one NavigationDestination loop, found {count}')
-          scaffold.write_text(text)
+          path = Path('lib/src/adaptive_nav_scaffold.dart')
+          text = path.read_text()
+          marker = 'class _NotchBottomBar extends StatelessWidget {'
+          before, notch = text.split(marker, 1)
+          old = 'child: InkWell('
+          if old not in notch:
+              raise SystemExit('Expected notch InkWell was not found')
+          notch = notch.replace(old, 'child: GestureDetector(', 1)
+          path.write_text(before + marker + notch)
           PY
 
           dart format .
@@ -85,7 +65,7 @@ jobs:
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git add .
-            git commit -m "fix: resolve analyzer findings"
+            git commit -m "fix: make notch destinations material-independent"
             git push origin HEAD:main
           fi
 
