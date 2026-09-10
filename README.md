@@ -2,7 +2,7 @@
 
 Adaptive, router-agnostic navigation for modern Flutter applications.
 
-`adaptative_nav_bar` keeps **navigation state separate from navigation UI**. Define destinations once, keep the selected index in your app/router, and switch between Material 3 bottom navigation, floating bars, pills, notches, glass surfaces, rails, sidebars, or a custom renderer without rewriting routes.
+`adaptative_nav_bar` keeps **navigation state separate from navigation UI**. Define destinations once, keep the selected index in your app/router, and switch between Material 3 bottom navigation, floating bars, animated notches, expanding capsules, rails, sidebars, or a custom renderer without rewriting routes.
 
 > Package name note: the repository/package keeps the established `adaptative_nav_bar` name. Public Dart APIs intentionally use the standard English `Adaptive...` naming.
 
@@ -13,9 +13,10 @@ Adaptive, router-agnostic navigation for modern Flutter applications.
 - Adaptive by available width, not by device/platform checks.
 - Material 3 through Flutter's standalone official `material_ui` package.
 - Compact, medium, and expanded window classes.
-- Built-in bottom styles: Material 3, floating, pill, notch, bubble, glass, and minimal.
-- Built-in rail styles: Material 3, indicator, and compact.
-- Built-in sidebar styles: Material-like, collapsible, and minimal.
+- Reference-inspired bottom styles with independent clean-room implementations.
+- Raised middle destination support compatible with mobile primary-action patterns.
+- Built-in rail styles: Material 3, dense indicator, and compact.
+- Built-in sidebar styles: Material-like, SidebarX-inspired collapsible, and minimal.
 - Custom navigation builder with a stable `AdaptiveNavBarConfig` contract.
 - Optional controller for show/hide and sidebar expansion.
 - Scroll-aware hide/show behavior.
@@ -102,14 +103,49 @@ The defaults automatically use:
 
 The thresholds are configurable with `AdaptiveNavBreakpoints`.
 
-## Switching visual models
+## Bottom styles
 
-Destinations and routing do not change. Only the presentation changes:
+All built-in bottom styles use the same destinations and selection callback:
+
+```dart
+AdaptiveBottomNavStyle.material3
+AdaptiveBottomNavStyle.floating
+AdaptiveBottomNavStyle.pill
+AdaptiveBottomNavStyle.notch
+AdaptiveBottomNavStyle.bubble
+AdaptiveBottomNavStyle.glass
+AdaptiveBottomNavStyle.minimal
+AdaptiveBottomNavStyle.persistent
+AdaptiveBottomNavStyle.google
+AdaptiveBottomNavStyle.stylish
+AdaptiveBottomNavStyle.centerRaised
+```
+
+### Reference fidelity
+
+The package does not import or wrap the reference packages. Each renderer is an original implementation using the same interaction/design family while preserving this package's adaptive architecture.
+
+| Style | Design family |
+| --- | --- |
+| `material3` | Flutter Material 3 `NavigationBar` |
+| `floating` | Floating surface inspired by `flutter_floating_bottom_bar` |
+| `notch` | Moving notch + raised selected destination inspired by `animated_notch_bottom_bar` |
+| `persistent` | Expanding selected capsule inspired by `persistent_bottom_nav_bar` Style 1 |
+| `google` | Selected tab expands horizontally to show its label, matching the Google Nav Bar pattern |
+| `stylish` | Animated selected icon with a moving/visible marker inspired by `stylish_bottom_bar` dot-style behavior |
+| `centerRaised` | Permanently elevated middle destination inspired by the persistent bottom bar Style 15 family |
+| `collapsible` sidebar | Collapsed/extended interaction inspired by SidebarX |
+
+The floating implementation also keeps stable body spacing while hidden, uses SafeArea-aware positioning, and stays controlled by `AdaptiveNavScrollBehavior` rather than owning the application's scroll controller.
+
+## Switching styles
+
+Only the presentation changes:
 
 ```dart
 AdaptiveNavScaffold(
   compact: const AdaptiveNavPresentation.bottom(
-    bottomStyle: AdaptiveBottomNavStyle.floating,
+    bottomStyle: AdaptiveBottomNavStyle.google,
   ),
   medium: const AdaptiveNavPresentation.rail(
     railStyle: AdaptiveRailStyle.indicator,
@@ -126,28 +162,87 @@ AdaptiveNavScaffold(
 )
 ```
 
-To change a floating bar to a notch:
+Changing to another compact renderer does not affect routing:
 
 ```diff
-- bottomStyle: AdaptiveBottomNavStyle.floating,
+- bottomStyle: AdaptiveBottomNavStyle.google,
 + bottomStyle: AdaptiveBottomNavStyle.notch,
 ```
 
-No route or destination code needs to change.
+## Raised middle navigation item
 
-## Bottom styles
+For mobile layouts such as trading, creation, scan, booking, or other primary-action flows, use the dedicated raised-center style:
 
 ```dart
-AdaptiveBottomNavStyle.material3
-AdaptiveBottomNavStyle.floating
-AdaptiveBottomNavStyle.pill
-AdaptiveBottomNavStyle.notch
-AdaptiveBottomNavStyle.bubble
-AdaptiveBottomNavStyle.glass
-AdaptiveBottomNavStyle.minimal
+AdaptiveNavScaffold(
+  compact: const AdaptiveNavPresentation.bottom(
+    bottomStyle: AdaptiveBottomNavStyle.centerRaised,
+    raisedItem: AdaptiveRaisedNavItem(
+      index: 2,
+      size: 60,
+      offset: 20,
+      elevation: 7,
+    ),
+  ),
+  destinations: const <AdaptiveNavDestination>[
+    AdaptiveNavDestination(
+      icon: Icon(Icons.home_outlined),
+      label: 'Home',
+    ),
+    AdaptiveNavDestination(
+      icon: Icon(Icons.explore_outlined),
+      label: 'Discover',
+    ),
+    AdaptiveNavDestination(
+      icon: Icon(Icons.swap_horiz),
+      label: 'Trade',
+    ),
+    AdaptiveNavDestination(
+      icon: Icon(Icons.hub_outlined),
+      label: 'Grow',
+    ),
+    AdaptiveNavDestination(
+      icon: Icon(Icons.account_balance_wallet_outlined),
+      label: 'Assets',
+    ),
+  ],
+  selectedIndex: selectedIndex,
+  onDestinationSelected: onDestinationSelected,
+  body: body,
+)
 ```
 
-The built-in models are original implementations inspired by common navigation patterns found across popular Flutter navigation packages. The package does not copy their navigation architecture or make them runtime dependencies.
+If `index` is omitted, the middle destination is raised automatically.
+
+The raised item is also composable with other custom bottom styles:
+
+```dart
+compact: const AdaptiveNavPresentation.bottom(
+  bottomStyle: AdaptiveBottomNavStyle.google,
+  raisedItem: AdaptiveRaisedNavItem(
+    index: 2,
+    size: 58,
+    offset: 18,
+  ),
+),
+```
+
+This keeps the primary middle destination inside the normal navigation model. It is not a second routing mechanism and does not need a separate `FloatingActionButton` callback.
+
+For a custom visual identity, configure the raised surface directly:
+
+```dart
+raisedItem: AdaptiveRaisedNavItem(
+  index: 2,
+  size: 62,
+  offset: 21,
+  elevation: 8,
+  backgroundColor: Colors.black,
+  foregroundColor: Colors.white,
+),
+```
+
+`notch` already owns its moving raised destination, so a separate `raisedItem` is not applied to that renderer.
 
 ## GoRouter + StatefulShellRoute
 
@@ -207,11 +302,7 @@ controller.toggleExpanded();
 controller.clearExpansionOverride();
 ```
 
-A controller created without an `expanded` value does not force all adaptive surfaces into the same state. Each presentation keeps its own `extended` default until `expand()`, `collapse()`, or `toggleExpanded()` creates an explicit override. `clearExpansionOverride()` restores the per-presentation defaults.
-
-This is important when the same controller is shared across breakpoints: a medium 80 px rail can remain collapsed while an expanded desktop sidebar starts open.
-
-This separation prevents two independent sources of truth for the selected route.
+A controller created without an `expanded` value does not force all adaptive surfaces into the same state. Each presentation keeps its own `extended` default until `expand()`, `collapse()`, or `toggleExpanded()` creates an override.
 
 ## Hide on scroll
 
@@ -240,12 +331,7 @@ AdaptiveNavScrollBehavior(
 
 ## Destination reselect
 
-Use `onDestinationReselected` for behaviors such as:
-
-- reset the current `go_router` branch to its initial location;
-- scroll the current page to the top;
-- refresh the selected destination;
-- pop a tab's internal stack.
+Use `onDestinationReselected` for behaviors such as resetting the current GoRouter branch, scrolling to the top, refreshing the current destination, or popping an internal branch stack.
 
 ```dart
 onDestinationReselected: (int index) {
@@ -273,7 +359,7 @@ Or register `AdaptiveNavThemeData` as a `ThemeExtension` on your app's `ThemeDat
 
 ## Architecture
 
-The package deliberately separates four concerns:
+The package deliberately separates navigation state, adaptive presentation, and visual renderer:
 
 ```text
 App / Router navigation state
@@ -284,8 +370,10 @@ AdaptiveNavScaffold + breakpoints
            ↓
 Presentation family (bottom / rail / sidebar / custom)
            ↓
-Visual style (Material 3 / floating / notch / glass / ...)
+Reference-inspired visual renderer
 ```
+
+Bottom, rail, and sidebar renderers are maintained independently so adding a new visual model does not grow a single monolithic widget.
 
 See [`doc/architecture.md`](doc/architecture.md) for the design rationale and extension rules.
 
@@ -299,15 +387,20 @@ flutter analyze
 flutter test
 example flutter analyze
 dart pub publish --dry-run
+Flutter minimum supported version
+Web JavaScript build
+Web Wasm build
+Android build
+Linux build
 ```
 
-Tests cover breakpoints, controller behavior, adaptive presentation selection, reselect behavior, custom builders, and every built-in bottom style.
+Tests cover breakpoints, controller behavior, adaptive presentation selection, reselect behavior, custom builders, every built-in bottom/rail/sidebar style, narrow-rail overflow regression, and the raised middle destination.
 
 ## Pub.dev readiness
 
 Before a stable `1.0.0`, the intended release process is:
 
-1. CI green on Flutter stable.
+1. CI green on supported Flutter versions.
 2. `dart pub publish --dry-run` without blocking warnings.
 3. Public API review and documentation coverage.
 4. Example verified on mobile, tablet, desktop, and web.
