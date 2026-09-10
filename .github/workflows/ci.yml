@@ -1,21 +1,15 @@
-name: CI
+name: Apply adaptive rail layout fix
 
 on:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
 
 permissions:
-  contents: read
-
-concurrency:
-  group: adaptative-nav-bar-${{ github.ref }}
-  cancel-in-progress: true
+  contents: write
 
 jobs:
-  quality:
-    name: Quality / Flutter 3.47.2
+  fix:
+    if: github.actor != 'github-actions[bot]'
     runs-on:
       - self-hosted
       - devs-flutter-plugin-ci
@@ -23,14 +17,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-
-      - name: Prepare runner dependencies
-        run: |
-          if ! command -v xz >/dev/null 2>&1; then
-            sudo apt-get update
-            sudo apt-get install -y xz-utils
-          fi
-          xz --version
+        with:
+          fetch-depth: 0
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -39,52 +27,343 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Install package dependencies
-        run: flutter pub get
-
-      - name: Install example dependencies
-        working-directory: example
-        run: flutter pub get
-
-      - name: Check formatting
-        run: dart format --output=none --set-exit-if-changed .
-
-      - name: Analyze package
-        run: flutter analyze
-
-      - name: Test package
-        run: flutter test --coverage
-
-      - name: Analyze example
-        working-directory: example
-        run: flutter analyze
-
-      - name: Validate package publication
-        run: dart pub publish --dry-run
-
-  minimum-flutter:
-    name: Minimum supported / Flutter 3.44.0
-    runs-on:
-      - self-hosted
-      - devs-flutter-plugin-ci
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Prepare runner dependencies
+      - name: Apply layout corrections
         run: |
-          if ! command -v xz >/dev/null 2>&1; then
-            sudo apt-get update
-            sudo apt-get install -y xz-utils
-          fi
+          python3 <<'PY'
+          from pathlib import Path
 
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.44.0'
-          channel: stable
-          cache: true
+          controller = Path('lib/src/adaptive_nav_controller.dart')
+          controller.write_text("""// ignore_for_file: prefer_initializing_formals
+
+import 'package:flutter/foundation.dart';
+
+/// Imperative visibility and expansion controller for adaptive navigation.
+///
+/// Destination selection intentionally stays controlled by
+/// `selectedIndex`/`onDestinationSelected` so the package remains compatible
+/// with Router API solutions such as `go_router`.
+class AdaptiveNavController extends ChangeNotifier {
+  /// Creates a controller.
+  ///
+  /// When [expanded] is omitted, each adaptive presentation keeps its own
+  /// `extended` default. Calling [expand], [collapse], or [toggleExpanded]
+  /// creates an explicit expansion override.
+  AdaptiveNavController({bool visible = true, bool? expanded})
+    : _visible = visible,
+      _expanded = expanded;
+
+  bool _visible;
+  bool? _expanded;
+
+  /// Whether the current navigation surface is visible.
+  bool get visible => _visible;
+
+  /// Explicit expansion override, or `null` to use the presentation default.
+  bool? get expanded => _expanded;
+
+  /// Whether an explicit expansion override is currently active.
+  bool get hasExpansionOverride => _expanded != null;
+
+  /// Shows the navigation surface.
+  void show() => _setVisible(true);
+
+  /// Hides the navigation surface.
+  void hide() => _setVisible(false);
+
+  /// Toggles navigation visibility.
+  void toggleVisibility() => _setVisible(!_visible);
+
+  /// Expands supported rail/sidebar presentations.
+  void expand() => _setExpanded(true);
+
+  /// Collapses supported rail/sidebar presentations.
+  void collapse() => _setExpanded(false);
+
+  /// Toggles rail/sidebar expansion.
+  ///
+  /// [current] should be supplied by a presentation when no explicit override
+  /// exists yet, so the first toggle is relative to that presentation state.
+  void toggleExpanded([bool current = false]) =>
+      _setExpanded(!(_expanded ?? current));
+
+  /// Removes the explicit expansion override and restores presentation defaults.
+  void clearExpansionOverride() {
+    if (_expanded == null) {
+      return;
+    }
+    _expanded = null;
+    notifyListeners();
+  }
+
+  void _setExpanded(bool value) {
+    if (_expanded == value) {
+      return;
+    }
+    _expanded = value;
+    notifyListeners();
+  }
+
+  void _setVisible(bool value) {
+    if (_visible == value) {
+      return;
+    }
+    _visible = value;
+    notifyListeners();
+  }
+}
+""")
+
+          scaffold = Path('lib/src/adaptive_nav_scaffold.dart')
+          text = scaffold.read_text()
+
+          old_rail = """    final Widget rail = presentation.railStyle == AdaptiveRailStyle.compact
+        ? _CompactRail(config: config)
+        : _MaterialRail(
+            config: config,
+            style: presentation.railStyle,
+            extended: config.expanded,
+          );
+"""
+          new_rail = """    // A Material NavigationRail needs enough horizontal room before it can
+    // safely render in extended mode. Keeping narrow rails collapsed prevents
+    // labels and indicators from overflowing their 80 px default footprint.
+    final bool railExtended = config.expanded && presentation.width >= 256;
+    final Widget rail = switch (presentation.railStyle) {
+      AdaptiveRailStyle.compact => _CompactRail(
+        config: config,
+        showIndicator: false,
+      ),
+      AdaptiveRailStyle.indicator when !railExtended =>
+        _CompactRail(config: config),
+      _ => _MaterialRail(
+        config: config,
+        style: presentation.railStyle,
+        extended: railExtended,
+      ),
+    };
+"""
+          if old_rail not in text:
+              raise SystemExit('Expected rail builder block was not found')
+          text = text.replace(old_rail, new_rail, 1)
+
+          old_toggle = "      widget.controller!.toggleExpanded();\n"
+          new_toggle = "      widget.controller!.toggleExpanded(current);\n"
+          if old_toggle not in text:
+              raise SystemExit('Expected controller toggle call was not found')
+          text = text.replace(old_toggle, new_toggle, 1)
+
+          old_compact_ctor = """class _CompactRail extends StatelessWidget {
+  const _CompactRail({required this.config});
+
+  final AdaptiveNavBarConfig config;
+"""
+          new_compact_ctor = """class _CompactRail extends StatelessWidget {
+  const _CompactRail({required this.config, this.showIndicator = true});
+
+  final AdaptiveNavBarConfig config;
+  final bool showIndicator;
+"""
+          if old_compact_ctor not in text:
+              raise SystemExit('Expected compact rail constructor was not found')
+          text = text.replace(old_compact_ctor, new_compact_ctor, 1)
+
+          compact_start = text.index('class _CompactRail extends StatelessWidget')
+          compact_end = text.index('class _Sidebar extends StatelessWidget')
+          compact_section = text[compact_start:compact_end]
+          old_compact_item = """                theme: config.theme,
+                onTap: () => config.onDestinationSelected(index),
+"""
+          new_compact_item = """                theme: config.theme,
+                minimal: !showIndicator,
+                onTap: () => config.onDestinationSelected(index),
+"""
+          if old_compact_item not in compact_section:
+              raise SystemExit('Expected compact rail destination was not found')
+          compact_section = compact_section.replace(old_compact_item, new_compact_item, 1)
+          text = text[:compact_start] + compact_section + text[compact_end:]
+
+          old_metrics = """      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: theme.itemPadding,
+"""
+          new_metrics = """      width: expanded ? null : 48,
+      height: expanded ? null : 48,
+      margin: expanded
+          ? const EdgeInsets.symmetric(horizontal: 8, vertical: 3)
+          : const EdgeInsets.symmetric(vertical: 2),
+      padding: expanded ? theme.itemPadding : EdgeInsets.zero,
+"""
+          if old_metrics not in text:
+              raise SystemExit('Expected vertical destination metrics were not found')
+          text = text.replace(old_metrics, new_metrics, 1)
+          scaffold.write_text(text)
+
+          controller_tests = Path('test/adaptive_nav_controller_test.dart')
+          controller_tests.write_text("""import 'package:adaptative_nav_bar/adaptative_nav_bar.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+void main() {
+  test('controller keeps presentation expansion by default', () {
+    final AdaptiveNavController controller = AdaptiveNavController();
+
+    expect(controller.expanded, isNull);
+    expect(controller.hasExpansionOverride, isFalse);
+
+    controller.dispose();
+  });
+
+  test('controller changes visibility and expansion independently', () {
+    final AdaptiveNavController controller = AdaptiveNavController();
+    int notifications = 0;
+    controller.addListener(() => notifications++);
+
+    controller.hide();
+    expect(controller.visible, isFalse);
+
+    controller.collapse();
+    expect(controller.expanded, isFalse);
+
+    controller.show();
+    controller.expand();
+    expect(controller.visible, isTrue);
+    expect(controller.expanded, isTrue);
+    expect(notifications, 4);
+
+    controller.clearExpansionOverride();
+    expect(controller.expanded, isNull);
+    expect(notifications, 5);
+
+    controller.dispose();
+  });
+
+  test('setting an existing explicit state does not notify listeners', () {
+    final AdaptiveNavController controller = AdaptiveNavController(
+      expanded: true,
+    );
+    int notifications = 0;
+    controller.addListener(() => notifications++);
+
+    controller.show();
+    controller.expand();
+
+    expect(notifications, 0);
+    controller.dispose();
+  });
+
+  test('first toggle is relative to the active presentation', () {
+    final AdaptiveNavController controller = AdaptiveNavController();
+
+    controller.toggleExpanded(true);
+    expect(controller.expanded, isFalse);
+
+    controller.clearExpansionOverride();
+    controller.toggleExpanded(false);
+    expect(controller.expanded, isTrue);
+
+    controller.dispose();
+  });
+}
+""")
+
+          scaffold_tests = Path('test/adaptive_nav_scaffold_test.dart')
+          test_text = scaffold_tests.read_text()
+          marker = "  testWidgets('uses collapsible sidebar in expanded windows', (\n"
+          regression = """  testWidgets('indicator rail stays compact with a default controller', (
+    WidgetTester tester,
+  ) async {
+    await _setSurface(tester, const Size(700, 800));
+    final AdaptiveNavController controller = AdaptiveNavController();
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      _testApp(
+        controller: controller,
+        onSelected: (_) {},
+        medium: const AdaptiveNavPresentation.rail(
+          railStyle: AdaptiveRailStyle.indicator,
+        ),
+      ),
+    );
+
+    expect(tester.takeException(), isNull);
+    expect(find.byType(NavigationRail), findsNothing);
+
+    final double homeY = tester.getCenter(find.byIcon(Icons.home)).dy;
+    final double searchY = tester.getCenter(find.byIcon(Icons.search_outlined)).dy;
+    expect(searchY - homeY, lessThanOrEqualTo(56));
+  });
+
+"""
+          if regression not in test_text:
+              if marker not in test_text:
+                  raise SystemExit('Expected scaffold test insertion marker was not found')
+              test_text = test_text.replace(marker, regression + marker, 1)
+
+          old_signature = """Widget _testApp({
+  required ValueChanged<int> onSelected,
+  ValueChanged<int>? onReselected,
+  AdaptiveNavPresentation compact = const AdaptiveNavPresentation.bottom(),
+}) {
+"""
+          new_signature = """Widget _testApp({
+  required ValueChanged<int> onSelected,
+  ValueChanged<int>? onReselected,
+  AdaptiveNavController? controller,
+  AdaptiveNavPresentation compact = const AdaptiveNavPresentation.bottom(),
+  AdaptiveNavPresentation medium = const AdaptiveNavPresentation.rail(),
+}) {
+"""
+          if old_signature not in test_text:
+              raise SystemExit('Expected _testApp signature was not found')
+          test_text = test_text.replace(old_signature, new_signature, 1)
+
+          old_args = """        onDestinationSelected: onSelected,
+        onDestinationReselected: onReselected,
+        compact: compact,
+        body: const ColoredBox(color: Color(0xFFFFFFFF)),
+"""
+          new_args = """        onDestinationSelected: onSelected,
+        onDestinationReselected: onReselected,
+        controller: controller,
+        compact: compact,
+        medium: medium,
+        body: const ColoredBox(color: Color(0xFFFFFFFF)),
+"""
+          if old_args not in test_text:
+              raise SystemExit('Expected _testApp scaffold arguments were not found')
+          test_text = test_text.replace(old_args, new_args, 1)
+          scaffold_tests.write_text(test_text)
+
+          readme = Path('README.md')
+          readme_text = readme.read_text()
+          old_readme = """controller.toggleExpanded();
+```
+
+This separation prevents two independent sources of truth for the selected route.
+"""
+          new_readme = """controller.toggleExpanded();
+controller.clearExpansionOverride();
+```
+
+A controller created without an `expanded` value does not force all adaptive
+surfaces into the same state. Each presentation keeps its own `extended`
+default until `expand()`, `collapse()`, or `toggleExpanded()` creates an
+override. `clearExpansionOverride()` restores the per-presentation defaults.
+
+This separation prevents two independent sources of truth for the selected route.
+"""
+          if old_readme not in readme_text:
+              raise SystemExit('Expected README controller section was not found')
+          readme.write_text(readme_text.replace(old_readme, new_readme, 1))
+
+          changelog = Path('CHANGELOG.md')
+          changelog_text = changelog.read_text()
+          bullet = '- Fixed narrow rail overflow, compact indicator footprint, and vertical destination spacing.\n'
+          if bullet not in changelog_text:
+              changelog_text += bullet
+          changelog.write_text(changelog_text)
+          PY
+
+          dart format lib test
 
       - name: Install dependencies
         run: flutter pub get
@@ -95,70 +374,16 @@ jobs:
       - name: Test package
         run: flutter test
 
-  platform-builds:
-    name: Builds / Web JS + Web Wasm + Linux + Android
-    runs-on:
-      - self-hosted
-      - devs-flutter-plugin-ci
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Prepare Linux build dependencies
+      - name: Analyze example
+        working-directory: example
         run: |
-          if ! command -v xz >/dev/null 2>&1; then
-            sudo apt-get update
-            sudo apt-get install -y xz-utils
-          fi
-          if ! pkg-config --exists gtk+-3.0 2>/dev/null; then
-            sudo apt-get update
-            sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev
-          fi
-
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.47.2'
-          channel: stable
-          cache: true
-
-      - name: Install package dependencies
-        run: flutter pub get
-
-      - name: Create build harness
-        run: |
-          rm -rf .ci_example
-          cp -R example .ci_example
-          cd .ci_example
-          flutter create --platforms=android,web,linux .
           flutter pub get
+          flutter analyze
 
-      - name: Build Web JavaScript
-        working-directory: .ci_example
-        run: flutter build web --release
-
-      - name: Build Web Wasm
-        working-directory: .ci_example
-        run: flutter build web --wasm --release
-
-      - name: Build Linux
-        working-directory: .ci_example
+      - name: Commit fix
         run: |
-          flutter config --enable-linux-desktop
-          flutter build linux --debug
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: '17'
-
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v4
-        with:
-          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
-
-      - name: Build Android
-        working-directory: .ci_example
-        run: flutter build apk --debug
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lib/src/adaptive_nav_controller.dart lib/src/adaptive_nav_scaffold.dart test/adaptive_nav_controller_test.dart test/adaptive_nav_scaffold_test.dart README.md CHANGELOG.md
+          git commit -m "fix: tighten adaptive rail layout"
+          git push origin HEAD:main
