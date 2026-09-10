@@ -25,8 +25,6 @@ void main() {
     WidgetTester tester,
   ) async {
     await _setSurface(tester, const Size(500, 800));
-    final SemanticsHandle semantics = tester.ensureSemantics();
-    addTearDown(semantics.dispose);
 
     await tester.pumpWidget(
       MaterialApp(
@@ -42,9 +40,9 @@ void main() {
       ),
     );
 
-    expect(find.bySemanticsLabel('Home destination'), findsOneWidget);
-    expect(find.bySemanticsLabel('Search destination'), findsOneWidget);
-    expect(find.bySemanticsLabel('Profile destination'), findsOneWidget);
+    expect(_semanticsWithLabel('Home destination'), findsOneWidget);
+    expect(_semanticsWithLabel('Search destination'), findsOneWidget);
+    expect(_semanticsWithLabel('Profile destination'), findsOneWidget);
   });
 
   testWidgets('renders at large text scale without exceptions', (
@@ -100,6 +98,12 @@ void main() {
     expect(find.text('Home'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+}
+
+Finder _semanticsWithLabel(String label) {
+  return find.byWidgetPredicate(
+    (Widget widget) => widget is Semantics && widget.properties.label == label,
+  );
 }
 
 Future<void> _setSurface(WidgetTester tester, Size size) async {

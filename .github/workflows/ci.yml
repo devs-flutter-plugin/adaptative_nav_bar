@@ -22,7 +22,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Prepare runner dependencies
         run: |
@@ -70,7 +70,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Prepare runner dependencies
         run: |
@@ -96,16 +96,16 @@ jobs:
         run: flutter test
 
   platform-builds:
-    name: Builds / Android + Web JS + Web Wasm + Linux
+    name: Builds / Web JS + Web Wasm + Linux + Android
     runs-on:
       - self-hosted
       - devs-flutter-plugin-ci
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
-      - name: Prepare runner dependencies
+      - name: Prepare Linux build dependencies
         run: |
           if ! command -v xz >/dev/null 2>&1; then
             sudo apt-get update
@@ -142,12 +142,23 @@ jobs:
         working-directory: .ci_example
         run: flutter build web --wasm --release
 
-      - name: Build Android
-        working-directory: .ci_example
-        run: flutter build apk --debug
-
       - name: Build Linux
         working-directory: .ci_example
         run: |
           flutter config --enable-linux-desktop
           flutter build linux --debug
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
+
+      - name: Build Android
+        working-directory: .ci_example
+        run: flutter build apk --debug
