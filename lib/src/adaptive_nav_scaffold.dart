@@ -887,7 +887,7 @@ class _NotchBottomBar extends StatelessWidget {
                       selected: index == config.selectedIndex,
                       enabled: destination.enabled,
                       label: destination.semanticLabel ?? destination.label,
-                      child: InkWell(
+                      child: GestureDetector(
                         onTap: destination.enabled
                             ? () => config.onDestinationSelected(index)
                             : null,
