@@ -152,7 +152,6 @@ class _AdaptiveNavScaffoldState extends State<AdaptiveNavScaffold> {
 
         return switch (presentation.type) {
           AdaptiveNavPresentationType.bottom => _buildBottom(
-            context,
             body,
             presentation,
             config,
@@ -182,7 +181,6 @@ class _AdaptiveNavScaffoldState extends State<AdaptiveNavScaffold> {
   }
 
   Widget _buildBottom(
-    BuildContext context,
     Widget body,
     AdaptiveNavPresentation presentation,
     AdaptiveNavBarConfig config,
@@ -240,13 +238,24 @@ class _AdaptiveNavScaffoldState extends State<AdaptiveNavScaffold> {
     AdaptiveNavBarConfig config,
     Duration duration,
   ) {
-    final Widget rail = presentation.railStyle == AdaptiveRailStyle.compact
-        ? _CompactRail(config: config)
-        : _MaterialRail(
-            config: config,
-            style: presentation.railStyle,
-            extended: config.expanded,
-          );
+    // NavigationRail's Material extended layout requires considerably more
+    // width than the default compact rail. Never force extended content into
+    // the standard 80 px footprint.
+    final bool railExtended = config.expanded && presentation.width >= 256;
+
+    final Widget rail = switch (presentation.railStyle) {
+      AdaptiveRailStyle.compact => _CompactRail(
+        config: config,
+        showIndicator: false,
+      ),
+      AdaptiveRailStyle.indicator when !railExtended =>
+        _CompactRail(config: config),
+      _ => _MaterialRail(
+        config: config,
+        style: presentation.railStyle,
+        extended: railExtended,
+      ),
+    };
 
     return Row(
       children: <Widget>[
@@ -392,7 +401,7 @@ class _AdaptiveNavScaffoldState extends State<AdaptiveNavScaffold> {
 
   void _toggleExpanded(bool current) {
     if (widget.controller != null) {
-      widget.controller!.toggleExpanded();
+      widget.controller!.toggleExpanded(current);
       return;
     }
     setState(() {
@@ -472,9 +481,13 @@ class _MaterialRail extends StatelessWidget {
 }
 
 class _CompactRail extends StatelessWidget {
-  const _CompactRail({required this.config});
+  const _CompactRail({
+    required this.config,
+    this.showIndicator = true,
+  });
 
   final AdaptiveNavBarConfig config;
+  final bool showIndicator;
 
   @override
   Widget build(BuildContext context) {
@@ -491,6 +504,7 @@ class _CompactRail extends StatelessWidget {
                 selected: index == config.selectedIndex,
                 expanded: false,
                 theme: config.theme,
+                minimal: !showIndicator,
                 onTap: () => config.onDestinationSelected(index),
               ),
           ],
@@ -541,7 +555,7 @@ class _Sidebar extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 4),
             for (final (int index, AdaptiveNavDestination destination)
                 in config.destinations.indexed)
               _VerticalDestination(
@@ -583,15 +597,22 @@ class _VerticalDestination extends StatelessWidget {
         ? theme.selectedColor
         : theme.foregroundColor;
     final Widget icon = destination.buildIcon(selected: selected);
+    final BorderRadius borderRadius = BorderRadius.circular(expanded ? 18 : 14);
+
     final Widget content = AnimatedContainer(
       duration: const Duration(milliseconds: 180),
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      padding: theme.itemPadding,
+      width: expanded ? null : 48,
+      height: expanded ? null : 48,
+      margin: expanded
+          ? const EdgeInsets.symmetric(horizontal: 8, vertical: 3)
+          : const EdgeInsets.symmetric(vertical: 2),
+      padding: expanded ? theme.itemPadding : EdgeInsets.zero,
       decoration: BoxDecoration(
         color: selected && !minimal ? theme.indicatorColor : null,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: borderRadius,
       ),
       child: Row(
+        mainAxisSize: expanded ? MainAxisSize.max : MainAxisSize.min,
         mainAxisAlignment: expanded
             ? MainAxisAlignment.start
             : MainAxisAlignment.center,
@@ -624,7 +645,7 @@ class _VerticalDestination extends StatelessWidget {
         message: destination.tooltip ?? destination.label,
         child: InkWell(
           onTap: destination.enabled ? onTap : null,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: borderRadius,
           child: content,
         ),
       ),
@@ -888,6 +909,7 @@ class _NotchBottomBar extends StatelessWidget {
                       enabled: destination.enabled,
                       label: destination.semanticLabel ?? destination.label,
                       child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
                         onTap: destination.enabled
                             ? () => config.onDestinationSelected(index)
                             : null,
