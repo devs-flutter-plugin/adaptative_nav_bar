@@ -8,23 +8,21 @@ final GoRouter _router = GoRouter(
   initialLocation: '/home',
   routes: <RouteBase>[
     StatefulShellRoute.indexedStack(
-      builder: (
-        BuildContext context,
-        GoRouterState state,
-        StatefulNavigationShell navigationShell,
-      ) {
-        return DemoShell(navigationShell: navigationShell);
-      },
+      builder:
+          (
+            BuildContext context,
+            GoRouterState state,
+            StatefulNavigationShell navigationShell,
+          ) {
+            return DemoShell(navigationShell: navigationShell);
+          },
       branches: <StatefulShellBranch>[
         StatefulShellBranch(
           routes: <RouteBase>[
             GoRoute(
               path: '/home',
               builder: (BuildContext context, GoRouterState state) =>
-                  const DemoPage(
-                    title: 'Home',
-                    icon: Icons.home_rounded,
-                  ),
+                  const DemoPage(title: 'Home', icon: Icons.home_rounded),
             ),
           ],
         ),
@@ -45,10 +43,7 @@ final GoRouter _router = GoRouter(
             GoRoute(
               path: '/profile',
               builder: (BuildContext context, GoRouterState state) =>
-                  const DemoPage(
-                    title: 'Profile',
-                    icon: Icons.person_rounded,
-                  ),
+                  const DemoPage(title: 'Profile', icon: Icons.person_rounded),
             ),
           ],
         ),
@@ -68,9 +63,7 @@ class ExampleApp extends StatelessWidget {
       theme: ThemeData(
         colorSchemeSeed: const Color(0xFF6750A4),
         brightness: Brightness.light,
-        extensions: const <ThemeExtension<dynamic>>[
-          AdaptiveNavThemeData(),
-        ],
+        extensions: const <ThemeExtension<dynamic>>[AdaptiveNavThemeData()],
       ),
       routerConfig: _router,
     );

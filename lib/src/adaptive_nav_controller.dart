@@ -7,11 +7,9 @@ import 'package:flutter/foundation.dart';
 /// with Router API solutions such as `go_router`.
 class AdaptiveNavController extends ChangeNotifier {
   /// Creates a controller.
-  AdaptiveNavController({
-    bool visible = true,
-    bool expanded = true,
-  }) : _visible = visible,
-       _expanded = expanded;
+  AdaptiveNavController({bool visible = true, bool expanded = true})
+    : _visible = visible,
+      _expanded = expanded;
 
   bool _visible;
   bool _expanded;

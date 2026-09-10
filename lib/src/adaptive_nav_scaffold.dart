@@ -118,8 +118,9 @@ class _AdaptiveNavScaffoldState extends State<AdaptiveNavScaffold> {
     );
     final bool disableAnimations =
         MediaQuery.maybeOf(context)?.disableAnimations ?? false;
-    final Duration duration =
-        disableAnimations ? Duration.zero : widget.motion.duration;
+    final Duration duration = disableAnimations
+        ? Duration.zero
+        : widget.motion.duration;
 
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
@@ -152,30 +153,30 @@ class _AdaptiveNavScaffoldState extends State<AdaptiveNavScaffold> {
 
         return switch (presentation.type) {
           AdaptiveNavPresentationType.bottom => _buildBottom(
-              context,
-              body,
-              presentation,
-              config,
-              duration,
-            ),
+            context,
+            body,
+            presentation,
+            config,
+            duration,
+          ),
           AdaptiveNavPresentationType.rail => _buildRail(
-              body,
-              presentation,
-              config,
-              duration,
-            ),
+            body,
+            presentation,
+            config,
+            duration,
+          ),
           AdaptiveNavPresentationType.sidebar => _buildSidebar(
-              body,
-              presentation,
-              config,
-              duration,
-            ),
+            body,
+            presentation,
+            config,
+            duration,
+          ),
           AdaptiveNavPresentationType.custom => _buildCustom(
-              body,
-              presentation,
-              config,
-              duration,
-            ),
+            body,
+            presentation,
+            config,
+            duration,
+          ),
         };
       },
     );
@@ -229,12 +230,7 @@ class _AdaptiveNavScaffoldState extends State<AdaptiveNavScaffold> {
                 )
               : body,
         ),
-        PositionedDirectional(
-          start: 0,
-          end: 0,
-          bottom: 0,
-          child: floatingBar,
-        ),
+        PositionedDirectional(start: 0, end: 0, bottom: 0, child: floatingBar),
       ],
     );
   }
@@ -598,8 +594,9 @@ class _VerticalDestination extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
       ),
       child: Row(
-        mainAxisAlignment:
-            expanded ? MainAxisAlignment.start : MainAxisAlignment.center,
+        mainAxisAlignment: expanded
+            ? MainAxisAlignment.start
+            : MainAxisAlignment.center,
         children: <Widget>[
           IconTheme(
             data: IconThemeData(color: foreground),
@@ -654,22 +651,19 @@ class _CustomBottomBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final double width = MediaQuery.sizeOf(context).width;
     final double effectiveMaxWidth = maxWidth ?? 560;
-    final double horizontalMargin =
-        style == AdaptiveBottomNavStyle.minimal ? 8 : 16;
+    final double horizontalMargin = style == AdaptiveBottomNavStyle.minimal
+        ? 8
+        : 16;
     final double constrainedWidth = (width - horizontalMargin * 2)
         .clamp(0.0, effectiveMaxWidth)
         .toDouble();
 
     Widget bar = switch (style) {
       AdaptiveBottomNavStyle.notch => _NotchBottomBar(
-          config: config,
-          motion: motion,
-        ),
-      _ => _FlatCustomBottomBar(
-          config: config,
-          style: style,
-          motion: motion,
-        ),
+        config: config,
+        motion: motion,
+      ),
+      _ => _FlatCustomBottomBar(config: config, style: style, motion: motion),
     };
 
     if (style == AdaptiveBottomNavStyle.glass) {
@@ -709,14 +703,15 @@ class _FlatCustomBottomBar extends StatelessWidget {
     final bool glass = style == AdaptiveBottomNavStyle.glass;
     final BorderRadius radius = switch (style) {
       AdaptiveBottomNavStyle.pill => BorderRadius.circular(40),
-      AdaptiveBottomNavStyle.floating || AdaptiveBottomNavStyle.glass =>
-        BorderRadius.circular(28),
+      AdaptiveBottomNavStyle.floating ||
+      AdaptiveBottomNavStyle.glass => BorderRadius.circular(28),
       AdaptiveBottomNavStyle.bubble => BorderRadius.circular(24),
       _ => config.theme.borderRadius ?? BorderRadius.circular(24),
     };
     final Color background = glass
-        ? (config.theme.backgroundColor ?? Theme.of(context).colorScheme.surface)
-            .withValues(alpha: 0.72)
+        ? (config.theme.backgroundColor ??
+                  Theme.of(context).colorScheme.surface)
+              .withValues(alpha: 0.72)
         : config.theme.backgroundColor ?? Theme.of(context).colorScheme.surface;
 
     return Material(
@@ -771,7 +766,9 @@ class _BottomDestination extends StatelessWidget {
     final bool pill = style == AdaptiveBottomNavStyle.pill;
     final bool bubble = style == AdaptiveBottomNavStyle.bubble;
     final bool minimal = style == AdaptiveBottomNavStyle.minimal;
-    final Color? foreground = selected ? theme.selectedColor : theme.foregroundColor;
+    final Color? foreground = selected
+        ? theme.selectedColor
+        : theme.foregroundColor;
     final bool showLabel = !minimal || selected;
 
     return Semantics(
@@ -956,7 +953,10 @@ class _NotchBottomBar extends StatelessWidget {
 }
 
 class _NotchBarClipper extends CustomClipper<Path> {
-  const _NotchBarClipper({required this.selectedIndex, required this.itemCount});
+  const _NotchBarClipper({
+    required this.selectedIndex,
+    required this.itemCount,
+  });
 
   final int selectedIndex;
   final int itemCount;

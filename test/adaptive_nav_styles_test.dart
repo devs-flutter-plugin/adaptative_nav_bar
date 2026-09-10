@@ -20,10 +20,7 @@ void main() {
               return AdaptiveNavScaffold(
                 selectedIndex: selected,
                 destinations: const <AdaptiveNavDestination>[
-                  AdaptiveNavDestination(
-                    icon: Icon(Icons.home),
-                    label: 'Home',
-                  ),
+                  AdaptiveNavDestination(icon: Icon(Icons.home), label: 'Home'),
                   AdaptiveNavDestination(
                     icon: Icon(Icons.search),
                     label: 'Search',

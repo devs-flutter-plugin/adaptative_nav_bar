@@ -42,9 +42,6 @@ class AdaptiveNavDestination {
     if (badge == null) {
       return effectiveIcon;
     }
-    return Badge(
-      label: badge,
-      child: effectiveIcon,
-    );
+    return Badge(label: badge, child: effectiveIcon);
   }
 }

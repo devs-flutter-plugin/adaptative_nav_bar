@@ -108,10 +108,7 @@ class AdaptiveNavThemeData extends ThemeExtension<AdaptiveNavThemeData> {
   }
 
   @override
-  AdaptiveNavThemeData lerp(
-    covariant AdaptiveNavThemeData? other,
-    double t,
-  ) {
+  AdaptiveNavThemeData lerp(covariant AdaptiveNavThemeData? other, double t) {
     if (other == null) {
       return this;
     }
