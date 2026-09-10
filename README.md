@@ -204,7 +204,12 @@ controller.toggleVisibility();
 controller.collapse();
 controller.expand();
 controller.toggleExpanded();
+controller.clearExpansionOverride();
 ```
+
+A controller created without an `expanded` value does not force all adaptive surfaces into the same state. Each presentation keeps its own `extended` default until `expand()`, `collapse()`, or `toggleExpanded()` creates an explicit override. `clearExpansionOverride()` restores the per-presentation defaults.
+
+This is important when the same controller is shared across breakpoints: a medium 80 px rail can remain collapsed while an expanded desktop sidebar starts open.
 
 This separation prevents two independent sources of truth for the selected route.
 
