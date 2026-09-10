@@ -1,0 +1,149 @@
+name: Reference style formatter
+
+on:
+  push:
+    branches:
+      - feat/reference-bottom-styles
+
+permissions:
+  contents: write
+
+concurrency:
+  group: reference-style-formatter
+  cancel-in-progress: true
+
+jobs:
+  format:
+    runs-on:
+      - self-hosted
+      - devs-flutter-plugin-ci
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v6
+        with:
+          ref: feat/reference-bottom-styles
+
+      - name: Apply analyzer and narrow-layout fixes
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          for name in [
+              'lib/src/adaptive_bottom_nav_renderer.dart',
+              'lib/src/adaptive_reference_bottom_nav_renderer.dart',
+          ]:
+              path = Path(name)
+              text = path.read_text()
+              text = text.replace(
+                  'return requested.clamp(0, count - 1) as int;',
+                  'return requested.clamp(0, count - 1);',
+              )
+              path.write_text(text)
+
+          path = Path('lib/src/adaptive_reference_bottom_nav_renderer.dart')
+          text = path.read_text()
+
+          old_google = '''              AnimatedSize(
+                duration: motion.duration,
+                curve: motion.curve,
+                child: selected
+                    ? Padding(
+                        padding: EdgeInsetsDirectional.only(start: style.gap),
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(maxWidth: style.maxLabelWidth),
+                          child: Text(
+                            destination.label,
+                            key: ValueKey<String>(
+                              'google-selected-label-${destination.label}',
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: config.theme.labelTextStyle?.copyWith(
+                              color: foreground,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      )
+                    : const SizedBox.shrink(),
+              ),'''
+          new_google = '''              if (selected)
+                Flexible(
+                  child: Padding(
+                    padding: EdgeInsetsDirectional.only(start: style.gap),
+                    child: Text(
+                      destination.label,
+                      key: ValueKey<String>(
+                        'google-selected-label-${destination.label}',
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: config.theme.labelTextStyle?.copyWith(
+                        color: foreground,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),'''
+          if old_google not in text:
+              raise SystemExit('Google label block did not match expected source')
+          text = text.replace(old_google, new_google, 1)
+
+          old_persistent = '''              AnimatedSize(
+                duration: motion.duration,
+                curve: motion.curve,
+                child: selected
+                    ? Padding(
+                        padding: EdgeInsetsDirectional.only(start: gap),
+                        child: FlexibleLabel(
+                          label: destination.label,
+                          style: config.theme.labelTextStyle?.copyWith(
+                            color: foreground,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      )
+                    : const SizedBox.shrink(),
+              ),'''
+          new_persistent = '''              if (selected)
+                Flexible(
+                  child: Padding(
+                    padding: EdgeInsetsDirectional.only(start: gap),
+                    child: Text(
+                      destination.label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: config.theme.labelTextStyle?.copyWith(
+                        color: foreground,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),'''
+          if old_persistent not in text:
+              raise SystemExit('Persistent label block did not match expected source')
+          text = text.replace(old_persistent, new_persistent, 1)
+          path.write_text(text)
+          PY
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.2'
+          channel: stable
+          cache: true
+
+      - name: Apply canonical Dart formatting
+        run: dart format .
+
+      - name: Commit formatted corrections
+        run: |
+          if git diff --quiet; then
+            echo 'No formatter changes to commit.'
+            exit 0
+          fi
+          git config user.name 'devs-flutter-plugin-ci'
+          git config user.email '58450364+devstecnologia@users.noreply.github.com'
+          git add .
+          git commit -m 'fix: refine reference navigation geometry'
+          git push origin HEAD:feat/reference-bottom-styles
