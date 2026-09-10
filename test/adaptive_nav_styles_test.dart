@@ -48,6 +48,97 @@ void main() {
     });
   }
 
+  testWidgets('google style reveals only the selected destination label', (
+    WidgetTester tester,
+  ) async {
+    await _setSurface(tester, const Size(390, 800));
+    int selected = 0;
+
+    await tester.pumpWidget(
+      _testApp(
+        builder: (StateSetter setState) => AdaptiveNavScaffold(
+          selectedIndex: selected,
+          destinations: _destinations,
+          compact: const AdaptiveNavPresentation.bottom(
+            bottomStyle: AdaptiveBottomNavStyle.google,
+          ),
+          onDestinationSelected: (int index) {
+            setState(() => selected = index);
+          },
+          body: const SizedBox.expand(),
+        ),
+      ),
+    );
+
+    expect(find.text('Home'), findsOneWidget);
+    expect(find.text('Search'), findsNothing);
+
+    await tester.tap(find.byIcon(Icons.search));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Home'), findsNothing);
+    expect(find.text('Search'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('persistent style expands selected label only', (
+    WidgetTester tester,
+  ) async {
+    await _setSurface(tester, const Size(390, 800));
+    int selected = 0;
+
+    await tester.pumpWidget(
+      _testApp(
+        builder: (StateSetter setState) => AdaptiveNavScaffold(
+          selectedIndex: selected,
+          destinations: _destinations,
+          compact: const AdaptiveNavPresentation.bottom(
+            bottomStyle: AdaptiveBottomNavStyle.persistent,
+          ),
+          onDestinationSelected: (int index) {
+            setState(() => selected = index);
+          },
+          body: const SizedBox.expand(),
+        ),
+      ),
+    );
+
+    expect(find.text('Home'), findsOneWidget);
+    expect(find.text('Search'), findsNothing);
+
+    await tester.tap(find.byIcon(Icons.search));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Home'), findsNothing);
+    expect(find.text('Search'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('notch raises the selected destination above inactive items', (
+    WidgetTester tester,
+  ) async {
+    await _setSurface(tester, const Size(390, 800));
+
+    await tester.pumpWidget(
+      _testApp(
+        builder: (StateSetter setState) => AdaptiveNavScaffold(
+          selectedIndex: 2,
+          destinations: _fiveDestinations,
+          compact: const AdaptiveNavPresentation.bottom(
+            bottomStyle: AdaptiveBottomNavStyle.notch,
+          ),
+          onDestinationSelected: (_) {},
+          body: const SizedBox.expand(),
+        ),
+      ),
+    );
+
+    final double homeY = tester.getCenter(find.byIcon(Icons.home_outlined)).dy;
+    final double tradeY = tester.getCenter(find.byIcon(Icons.swap_horiz)).dy;
+    expect(tradeY, lessThan(homeY));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('centerRaised keeps the middle destination above the base row', (
     WidgetTester tester,
   ) async {
@@ -100,7 +191,34 @@ void main() {
       ),
     );
 
-    expect(find.byIcon(Icons.swap_horiz), findsOneWidget);
+    final double homeY = tester.getCenter(find.byIcon(Icons.home_outlined)).dy;
+    final double tradeY = tester.getCenter(find.byIcon(Icons.swap_horiz)).dy;
+    expect(tradeY, lessThan(homeY));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('stylish style lifts the selected icon', (
+    WidgetTester tester,
+  ) async {
+    await _setSurface(tester, const Size(390, 800));
+
+    await tester.pumpWidget(
+      _testApp(
+        builder: (StateSetter setState) => AdaptiveNavScaffold(
+          selectedIndex: 0,
+          destinations: _destinations,
+          compact: const AdaptiveNavPresentation.bottom(
+            bottomStyle: AdaptiveBottomNavStyle.stylish,
+          ),
+          onDestinationSelected: (_) {},
+          body: const SizedBox.expand(),
+        ),
+      ),
+    );
+
+    final double homeY = tester.getCenter(find.byIcon(Icons.home)).dy;
+    final double searchY = tester.getCenter(find.byIcon(Icons.search)).dy;
+    expect(homeY, lessThan(searchY));
     expect(tester.takeException(), isNull);
   });
 
