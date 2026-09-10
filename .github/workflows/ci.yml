@@ -1,125 +1,36 @@
 name: CI
 
 on:
+  push:
+    branches: [main]
   pull_request:
     branches: [main]
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: adaptative-nav-bar-maintenance-${{ github.ref }}
+  group: adaptative-nav-bar-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  maintenance:
-    name: Apply reference renderer fixes
+  quality:
+    name: Quality / Flutter 3.47.2
     runs-on:
       - self-hosted
       - devs-flutter-plugin-ci
 
     steps:
-      - name: Checkout feature branch
+      - name: Checkout
         uses: actions/checkout@v6
-        with:
-          ref: ${{ github.event.pull_request.head.ref }}
 
-      - name: Refine source geometry
+      - name: Prepare runner dependencies
         run: |
-          python3 - <<'PY'
-          from pathlib import Path
-
-          for file_name in (
-              'lib/src/adaptive_bottom_nav_renderer.dart',
-              'lib/src/adaptive_reference_bottom_nav_renderer.dart',
-          ):
-              path = Path(file_name)
-              source = path.read_text()
-              source = source.replace(
-                  'return requested.clamp(0, count - 1) as int;',
-                  'return requested.clamp(0, count - 1);',
-              )
-              path.write_text(source)
-
-          path = Path('lib/src/adaptive_reference_bottom_nav_renderer.dart')
-          source = path.read_text()
-
-          def replace_call_containing(source, needle, replacement_lines):
-              needle_at = source.index(needle)
-              start = source.rfind('AnimatedSize(', 0, needle_at)
-              if start == -1:
-                  raise RuntimeError('Expected AnimatedSize was not found')
-              line_start = source.rfind('\n', 0, start) + 1
-              indent = source[line_start:start]
-              depth = 0
-              end = None
-              for offset, char in enumerate(source[start:], start):
-                  if char == '(':
-                      depth += 1
-                  elif char == ')':
-                      depth -= 1
-                      if depth == 0:
-                          end = offset + 1
-                          if end < len(source) and source[end] == ',':
-                              end += 1
-                          break
-              if end is None:
-                  raise RuntimeError('Expected AnimatedSize was not balanced')
-              block = '\n'.join(indent + line for line in replacement_lines)
-              return source[:line_start] + block + source[end:]
-
-          source = replace_call_containing(
-              source,
-              "'google-selected-label-${destination.label}'",
-              [
-                  'if (selected)',
-                  '  Flexible(',
-                  '    child: Padding(',
-                  '      padding: EdgeInsetsDirectional.only(start: style.gap),',
-                  '      child: Text(',
-                  '        destination.label,',
-                  '        key: ValueKey<String>(',
-                  "          'google-selected-label-${destination.label}',",
-                  '        ),',
-                  '        maxLines: 1,',
-                  '        overflow: TextOverflow.ellipsis,',
-                  '        style: config.theme.labelTextStyle?.copyWith(',
-                  '          color: foreground,',
-                  '          fontWeight: FontWeight.w600,',
-                  '        ),',
-                  '      ),',
-                  '    ),',
-                  '  ),',
-              ],
-          )
-
-          source = replace_call_containing(
-              source,
-              'child: FlexibleLabel(',
-              [
-                  'if (selected)',
-                  '  Flexible(',
-                  '    child: Padding(',
-                  '      padding: EdgeInsetsDirectional.only(start: gap),',
-                  '      child: Text(',
-                  '        destination.label,',
-                  '        maxLines: 1,',
-                  '        overflow: TextOverflow.ellipsis,',
-                  '        style: config.theme.labelTextStyle?.copyWith(',
-                  '          color: foreground,',
-                  '          fontWeight: FontWeight.w600,',
-                  '        ),',
-                  '      ),',
-                  '    ),',
-                  '  ),',
-              ],
-          )
-
-          helper_start = source.index('class FlexibleLabel extends StatelessWidget')
-          helper_end = source.index('class _IconLabelDestination', helper_start)
-          source = source[:helper_start] + source[helper_end:]
-          path.write_text(source)
-          PY
+          if ! command -v xz >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y xz-utils
+          fi
+          xz --version
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -128,17 +39,126 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Apply canonical Dart formatting
-        run: dart format .
+      - name: Install package dependencies
+        run: flutter pub get
 
-      - name: Commit corrections
+      - name: Install example dependencies
+        working-directory: example
+        run: flutter pub get
+
+      - name: Check formatting
+        run: dart format --output=none --set-exit-if-changed .
+
+      - name: Analyze package
+        run: flutter analyze
+
+      - name: Test package
+        run: flutter test --coverage
+
+      - name: Analyze example
+        working-directory: example
+        run: flutter analyze
+
+      - name: Validate package publication
+        run: dart pub publish --dry-run
+
+  minimum-flutter:
+    name: Minimum supported / Flutter 3.44.0
+    runs-on:
+      - self-hosted
+      - devs-flutter-plugin-ci
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Prepare runner dependencies
         run: |
-          if git diff --quiet; then
-            echo 'No changes to commit.'
-            exit 0
+          if ! command -v xz >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y xz-utils
           fi
-          git config user.name 'devs-flutter-plugin-ci'
-          git config user.email '58450364+devstecnologia@users.noreply.github.com'
-          git add .
-          git commit -m 'fix: refine reference navigation geometry'
-          git push origin HEAD:${{ github.event.pull_request.head.ref }}
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.0'
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze package
+        run: flutter analyze
+
+      - name: Test package
+        run: flutter test
+
+  platform-builds:
+    name: Builds / Web JS + Web Wasm + Linux + Android
+    runs-on:
+      - self-hosted
+      - devs-flutter-plugin-ci
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Prepare Linux build dependencies
+        run: |
+          if ! command -v xz >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y xz-utils
+          fi
+          if ! pkg-config --exists gtk+-3.0 2>/dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev
+          fi
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.2'
+          channel: stable
+          cache: true
+
+      - name: Install package dependencies
+        run: flutter pub get
+
+      - name: Create build harness
+        run: |
+          rm -rf .ci_example
+          cp -R example .ci_example
+          cd .ci_example
+          flutter create --platforms=android,web,linux .
+          flutter pub get
+
+      - name: Build Web JavaScript
+        working-directory: .ci_example
+        run: flutter build web --release
+
+      - name: Build Web Wasm
+        working-directory: .ci_example
+        run: flutter build web --wasm --release
+
+      - name: Build Linux
+        working-directory: .ci_example
+        run: |
+          flutter config --enable-linux-desktop
+          flutter build linux --debug
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
+
+      - name: Build Android
+        working-directory: .ci_example
+        run: flutter build apk --debug
