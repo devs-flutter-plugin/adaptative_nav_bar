@@ -48,6 +48,7 @@ jobs:
         run: |
           python3 <<'PY'
           from pathlib import Path
+          import re
 
           for file_name in [
               'lib/src/adaptive_nav_bar_config.dart',
@@ -71,14 +72,12 @@ jobs:
 
           scaffold = Path('lib/src/adaptive_nav_scaffold.dart')
           text = scaffold.read_text()
-          old = '''        for (final (int index, AdaptiveNavDestination destination)
-              in config.destinations.indexed)
-            NavigationDestination('''
-          new = '''        for (final AdaptiveNavDestination destination in config.destinations)
-          NavigationDestination('''
-          if old not in text:
-              raise SystemExit('Expected NavigationDestination loop was not found')
-          scaffold.write_text(text.replace(old, new, 1))
+          pattern = r'for \(final \(int index, AdaptiveNavDestination destination\)\s+in config\.destinations\.indexed\)\s+NavigationDestination\('
+          replacement = 'for (final AdaptiveNavDestination destination in config.destinations)\n          NavigationDestination('
+          text, count = re.subn(pattern, replacement, text, count=1)
+          if count != 1:
+              raise SystemExit(f'Expected one NavigationDestination loop, found {count}')
+          scaffold.write_text(text)
           PY
 
           dart format .
