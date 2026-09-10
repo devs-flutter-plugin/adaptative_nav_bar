@@ -15,3 +15,4 @@
 - Added GoRouter `StatefulShellRoute.indexedStack` example.
 - Added unit/widget tests and self-hosted CI with publish dry-run validation.
 - Migrated Material imports to the standalone official `material_ui` package.
+- Fixed narrow rail overflow, compact indicator footprint, and vertical destination spacing.
