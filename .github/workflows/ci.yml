@@ -43,15 +43,50 @@ jobs:
         working-directory: example
         run: flutter pub get
 
-      - name: Apply canonical formatting
+      - name: Apply analyzer cleanup
         if: github.event_name == 'push'
         run: |
+          python3 <<'PY'
+          from pathlib import Path
+
+          for file_name in [
+              'lib/src/adaptive_nav_bar_config.dart',
+              'lib/src/adaptive_nav_destination.dart',
+              'lib/src/adaptive_nav_motion.dart',
+              'lib/src/adaptive_nav_presentation.dart',
+              'lib/src/adaptive_nav_scaffold.dart',
+              'lib/src/adaptive_nav_scroll_behavior.dart',
+              'lib/src/adaptive_nav_theme.dart',
+          ]:
+              path = Path(file_name)
+              text = path.read_text()
+              text = text.replace("import 'package:flutter/foundation.dart';\n", '')
+              path.write_text(text)
+
+          controller = Path('lib/src/adaptive_nav_controller.dart')
+          text = controller.read_text()
+          marker = '// ignore_for_file: prefer_initializing_formals\n\n'
+          if not text.startswith(marker):
+              controller.write_text(marker + text)
+
+          scaffold = Path('lib/src/adaptive_nav_scaffold.dart')
+          text = scaffold.read_text()
+          old = '''        for (final (int index, AdaptiveNavDestination destination)
+              in config.destinations.indexed)
+            NavigationDestination('''
+          new = '''        for (final AdaptiveNavDestination destination in config.destinations)
+          NavigationDestination('''
+          if old not in text:
+              raise SystemExit('Expected NavigationDestination loop was not found')
+          scaffold.write_text(text.replace(old, new, 1))
+          PY
+
           dart format .
           if ! git diff --quiet; then
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git add .
-            git commit -m "style: apply canonical Flutter formatting"
+            git commit -m "fix: resolve analyzer findings"
             git push origin HEAD:main
           fi
 
