@@ -1,5 +1,6 @@
 import 'package:material_ui/material_ui.dart';
 
+import 'adaptive_bottom_nav_style_config.dart';
 import 'adaptive_nav_bar_config.dart';
 
 /// Built-in bottom navigation visual variants.
@@ -31,7 +32,7 @@ enum AdaptiveBottomNavStyle {
   /// Google-style navigation where only the selected tab expands to show text.
   google,
 
-  /// Animated icon + selection marker inspired by stylish_bottom_bar.
+  /// Animated, dot, bubble, or blur family inspired by stylish_bottom_bar.
   stylish,
 
   /// Classic mobile bar with a permanently raised middle destination.
@@ -125,6 +126,7 @@ class AdaptiveNavPresentation {
   /// Creates a bottom presentation.
   const AdaptiveNavPresentation.bottom({
     this.bottomStyle = AdaptiveBottomNavStyle.material3,
+    this.styleConfig,
     this.maxWidth,
     this.reserveBodySpace = true,
     this.raisedItem,
@@ -144,6 +146,7 @@ class AdaptiveNavPresentation {
     this.width = 80,
   }) : type = AdaptiveNavPresentationType.rail,
        bottomStyle = AdaptiveBottomNavStyle.material3,
+       styleConfig = null,
        sidebarStyle = AdaptiveSidebarStyle.material3,
        collapsedWidth = 80,
        maxWidth = null,
@@ -160,6 +163,7 @@ class AdaptiveNavPresentation {
     this.collapsedWidth = 80,
   }) : type = AdaptiveNavPresentationType.sidebar,
        bottomStyle = AdaptiveBottomNavStyle.material3,
+       styleConfig = null,
        railStyle = AdaptiveRailStyle.material3,
        maxWidth = null,
        reserveBodySpace = true,
@@ -174,6 +178,7 @@ class AdaptiveNavPresentation {
     this.reserveBodySpace = true,
   }) : type = AdaptiveNavPresentationType.custom,
        bottomStyle = AdaptiveBottomNavStyle.material3,
+       styleConfig = null,
        railStyle = AdaptiveRailStyle.material3,
        sidebarStyle = AdaptiveSidebarStyle.material3,
        extended = false,
@@ -188,9 +193,16 @@ class AdaptiveNavPresentation {
   /// Bottom visual style when [type] is [AdaptiveNavPresentationType.bottom].
   final AdaptiveBottomNavStyle bottomStyle;
 
+  /// Optional configuration owned by the selected bottom visual family.
+  ///
+  /// For example, [AdaptiveGoogleNavStyleConfig] only configures the Google
+  /// renderer and does not leak Google-specific padding or flex values into the
+  /// generic presentation contract.
+  final AdaptiveBottomNavStyleConfig? styleConfig;
+
   /// Optional raised destination layered over a bottom presentation.
   ///
-  /// This can be combined with any non-Material custom style. The
+  /// This can be combined with the reference-inspired bottom styles. The
   /// [AdaptiveBottomNavStyle.centerRaised] style supplies this behavior with a
   /// default middle destination even when [raisedItem] is omitted.
   final AdaptiveRaisedNavItem? raisedItem;
