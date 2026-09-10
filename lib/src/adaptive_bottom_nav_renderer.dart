@@ -425,6 +425,10 @@ class _ExpandingDestination extends StatelessWidget {
         ? config.theme.selectedColor
         : config.theme.foregroundColor;
     final Color? indicator = config.theme.indicatorColor;
+    final Widget icon = IconTheme(
+      data: IconThemeData(color: foreground),
+      child: destination.buildIcon(selected: selected),
+    );
 
     return Semantics(
       button: true,
@@ -440,7 +444,7 @@ class _ExpandingDestination extends StatelessWidget {
             duration: motion.duration,
             curve: motion.curve,
             height: 44,
-            padding: EdgeInsets.symmetric(horizontal: selected ? 14 : 10),
+            padding: EdgeInsets.symmetric(horizontal: selected ? 8 : 4),
             decoration: BoxDecoration(
               color: selected
                   ? indicator?.withValues(
@@ -449,34 +453,25 @@ class _ExpandingDestination extends StatelessWidget {
                   : const Color(0x00000000),
               borderRadius: BorderRadius.circular(50),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                IconTheme(
-                  data: IconThemeData(color: foreground),
-                  child: destination.buildIcon(selected: selected),
-                ),
-                AnimatedSize(
-                  duration: motion.duration,
-                  curve: motion.curve,
-                  child: selected
-                      ? Padding(
-                          padding: const EdgeInsetsDirectional.only(start: 8),
-                          child: Text(
-                            destination.label,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: config.theme.labelTextStyle?.copyWith(
-                              color: foreground,
-                              fontWeight: FontWeight.w600,
-                            ),
+            child: selected
+                ? Row(
+                    children: <Widget>[
+                      icon,
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          destination.label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: config.theme.labelTextStyle?.copyWith(
+                            color: foreground,
+                            fontWeight: FontWeight.w600,
                           ),
-                        )
-                      : const SizedBox.shrink(),
-                ),
-              ],
-            ),
+                        ),
+                      ),
+                    ],
+                  )
+                : Center(child: icon),
           ),
         ),
       ),
