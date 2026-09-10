@@ -19,7 +19,7 @@ final GoRouter _router = GoRouter(
       branches: <StatefulShellBranch>[
         _branch('/home', 'Home', Icons.home_rounded),
         _branch('/discover', 'Discover', Icons.explore_rounded),
-        _branch('/trade', 'Trade', Icons.swap_horiz_rounded),
+        _branch('/trade', 'Trade', Icons.swap_horiz),
         _branch('/grow', 'Grow', Icons.hub_rounded),
         _branch('/assets', 'Assets', Icons.account_balance_wallet_rounded),
       ],
@@ -83,8 +83,8 @@ class _DemoShellState extends State<DemoShell> {
           label: 'Discover',
         ),
         AdaptiveNavDestination(
-          icon: Icon(Icons.swap_horiz_outlined),
-          selectedIcon: Icon(Icons.swap_horiz_rounded),
+          icon: Icon(Icons.swap_horiz),
+          selectedIcon: Icon(Icons.swap_horiz),
           label: 'Trade',
         ),
         AdaptiveNavDestination(
