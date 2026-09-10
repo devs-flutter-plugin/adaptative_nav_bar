@@ -6,6 +6,7 @@ import 'adaptive_nav_bar_config.dart';
 import 'adaptive_nav_destination.dart';
 import 'adaptive_nav_motion.dart';
 import 'adaptive_nav_presentation.dart';
+import 'adaptive_nav_theme.dart';
 
 /// Internal renderer for all built-in bottom navigation presentations.
 ///
@@ -168,7 +169,7 @@ class AdaptiveBottomNavRenderer extends StatelessWidget {
       requested >= 0 && requested < count,
       'AdaptiveRaisedNavItem.index must reference an existing destination.',
     );
-    return requested.clamp(0, count - 1);
+    return requested.clamp(0, count - 1) as int;
   }
 }
 
@@ -278,15 +279,15 @@ class _StandardDestination extends StatelessWidget {
   final AdaptiveNavDestination destination;
   final bool selected;
   final _StandardVariant variant;
-  final dynamic theme;
+  final AdaptiveNavThemeData theme;
   final AdaptiveNavMotion motion;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final Color? foreground = selected
-        ? theme.selectedColor as Color?
-        : theme.foregroundColor as Color?;
+        ? theme.selectedColor
+        : theme.foregroundColor;
     final bool pill = variant == _StandardVariant.pill;
     final bool minimal = variant == _StandardVariant.minimal;
     final bool showLabel = !minimal || selected;
@@ -307,9 +308,12 @@ class _StandardDestination extends StatelessWidget {
               curve: motion.curve,
               constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
               margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
-              padding: EdgeInsets.symmetric(horizontal: pill ? 12 : 8, vertical: 5),
+              padding: EdgeInsets.symmetric(
+                horizontal: pill ? 12 : 8,
+                vertical: 5,
+              ),
               decoration: BoxDecoration(
-                color: selected && pill ? theme.indicatorColor as Color? : null,
+                color: selected && pill ? theme.indicatorColor : null,
                 borderRadius: BorderRadius.circular(24),
               ),
               child: Column(
@@ -331,7 +335,7 @@ class _StandardDestination extends StatelessWidget {
                       destination.label,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: (theme.labelTextStyle as TextStyle?)?.copyWith(
+                      style: theme.labelTextStyle?.copyWith(
                         color: foreground,
                         fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
                       ),
@@ -437,7 +441,9 @@ class _ExpandingDestination extends StatelessWidget {
             padding: EdgeInsets.symmetric(horizontal: selected ? 14 : 10),
             decoration: BoxDecoration(
               color: selected
-                  ? indicator?.withValues(alpha: strongerIndicator ? 0.95 : 0.55)
+                  ? indicator?.withValues(
+                      alpha: strongerIndicator ? 0.95 : 0.55,
+                    )
                   : const Color(0x00000000),
               borderRadius: BorderRadius.circular(50),
             ),
@@ -798,7 +804,7 @@ class _RaisedDestinationOverlay extends StatelessWidget {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
         final double itemWidth = constraints.maxWidth / config.destinations.length;
-        final double left =
+        final double start =
             itemWidth * raisedIndex + (itemWidth - raisedItem.size) / 2;
 
         return Stack(
@@ -806,7 +812,7 @@ class _RaisedDestinationOverlay extends StatelessWidget {
           children: <Widget>[
             child,
             PositionedDirectional(
-              start: left,
+              start: start,
               top: -raisedItem.offset,
               width: raisedItem.size,
               child: Semantics(
@@ -921,6 +927,13 @@ class _AnimatedNotchBottomBarState extends State<_AnimatedNotchBottomBar>
         final int selectedIndex = widget.config.selectedIndex;
         final AdaptiveNavDestination selected =
             widget.config.destinations[selectedIndex];
+        final double logicalAlignment = _alignmentFor(
+          position,
+          widget.config.destinations.length,
+        );
+        final double physicalAlignment = Directionality.of(context) == TextDirection.rtl
+            ? -logicalAlignment
+            : logicalAlignment;
 
         return SizedBox(
           height: 82,
@@ -933,6 +946,7 @@ class _AnimatedNotchBottomBarState extends State<_AnimatedNotchBottomBar>
                   clipper: _NotchBarClipper(
                     position: position,
                     itemCount: widget.config.destinations.length,
+                    rtl: Directionality.of(context) == TextDirection.rtl,
                   ),
                   child: Material(
                     color: widget.config.theme.backgroundColor,
@@ -960,10 +974,7 @@ class _AnimatedNotchBottomBarState extends State<_AnimatedNotchBottomBar>
                 ),
               ),
               Align(
-                alignment: Alignment(
-                  _alignmentFor(position, widget.config.destinations.length),
-                  -1,
-                ),
+                alignment: Alignment(physicalAlignment, -1),
                 child: Semantics(
                   button: true,
                   selected: true,
@@ -1069,15 +1080,21 @@ class _NotchInactiveDestination extends StatelessWidget {
 }
 
 class _NotchBarClipper extends CustomClipper<Path> {
-  const _NotchBarClipper({required this.position, required this.itemCount});
+  const _NotchBarClipper({
+    required this.position,
+    required this.itemCount,
+    required this.rtl,
+  });
 
   final double position;
   final int itemCount;
+  final bool rtl;
 
   @override
   Path getClip(Size size) {
     final double itemWidth = size.width / itemCount;
-    final double center = itemWidth * position + itemWidth / 2;
+    final double logicalCenter = itemWidth * position + itemWidth / 2;
+    final double center = rtl ? size.width - logicalCenter : logicalCenter;
     const double radius = 31;
     final Path path = Path()..moveTo(0, 0);
     path.lineTo(center - radius * 1.45, 0);
@@ -1106,6 +1123,8 @@ class _NotchBarClipper extends CustomClipper<Path> {
 
   @override
   bool shouldReclip(covariant _NotchBarClipper oldClipper) {
-    return oldClipper.position != position || oldClipper.itemCount != itemCount;
+    return oldClipper.position != position ||
+        oldClipper.itemCount != itemCount ||
+        oldClipper.rtl != rtl;
   }
 }
