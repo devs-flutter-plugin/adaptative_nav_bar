@@ -130,17 +130,25 @@ void main() {
     );
     await tester.pump();
 
-    final Iterable<AnimatedRotation> rotations = tester.widgetList<AnimatedRotation>(
-      find.byType(AnimatedRotation),
-    );
+    final Iterable<AnimatedRotation> rotations =
+        tester.widgetList<AnimatedRotation>(find.byType(AnimatedRotation));
     expect(rotations, isNotEmpty);
-    expect(rotations.every((AnimatedRotation item) => item.duration == Duration.zero), isTrue);
-
-    final Iterable<AnimatedContainer> containers = tester.widgetList<AnimatedContainer>(
-      find.byType(AnimatedContainer),
+    expect(
+      rotations.every(
+        (AnimatedRotation item) => item.duration == Duration.zero,
+      ),
+      isTrue,
     );
+
+    final Iterable<AnimatedContainer> containers =
+        tester.widgetList<AnimatedContainer>(find.byType(AnimatedContainer));
     expect(containers, isNotEmpty);
-    expect(containers.every((AnimatedContainer item) => item.duration == Duration.zero), isTrue);
+    expect(
+      containers.every(
+        (AnimatedContainer item) => item.duration == Duration.zero,
+      ),
+      isTrue,
+    );
     expect(tester.takeException(), isNull);
   });
 }
