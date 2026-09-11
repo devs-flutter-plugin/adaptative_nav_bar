@@ -48,6 +48,169 @@ class AdaptiveFloatingNavStyleConfig extends AdaptiveBottomNavStyleConfig {
   final double itemHorizontalPadding;
 }
 
+/// Geometry for the rounded pill navigation family.
+@immutable
+class AdaptivePillNavStyleConfig extends AdaptiveBottomNavStyleConfig {
+  /// Creates pill navigation configuration.
+  const AdaptivePillNavStyleConfig({
+    this.barHeight = 68,
+    this.horizontalMargin = 10,
+    this.bottomMargin = 8,
+    this.borderRadius = 30,
+    this.elevation = 1,
+    this.edgeInset = 6,
+    this.itemHorizontalPadding = 2,
+  }) : assert(barHeight >= 56),
+       assert(horizontalMargin >= 0),
+       assert(bottomMargin >= 0),
+       assert(borderRadius >= 0),
+       assert(elevation >= 0),
+       assert(edgeInset >= 0),
+       assert(itemHorizontalPadding >= 0);
+
+  /// Total bar height.
+  final double barHeight;
+
+  /// Horizontal viewport inset.
+  final double horizontalMargin;
+
+  /// Bottom safe-area offset.
+  final double bottomMargin;
+
+  /// Surface corner radius.
+  final double borderRadius;
+
+  /// Surface elevation.
+  final double elevation;
+
+  /// Inner edge inset before destination slots.
+  final double edgeInset;
+
+  /// Horizontal spacing inside each equal destination slot.
+  final double itemHorizontalPadding;
+}
+
+/// Geometry for the expanding bubble navigation family.
+@immutable
+class AdaptiveBubbleNavStyleConfig extends AdaptiveBottomNavStyleConfig {
+  /// Creates bubble navigation configuration.
+  const AdaptiveBubbleNavStyleConfig({
+    this.barHeight = 70,
+    this.activeFlex = 1.45,
+    this.inactiveFlex = 1,
+    this.activeHeight = 44,
+    this.activePadding = 10,
+    this.gap = 6,
+    this.borderRadius = 24,
+    this.indicatorOpacity = 0.72,
+    this.elevation = 1,
+  }) : assert(barHeight >= 56),
+       assert(activeFlex > 0),
+       assert(inactiveFlex > 0),
+       assert(activeHeight >= 40),
+       assert(activePadding >= 0),
+       assert(gap >= 0),
+       assert(borderRadius >= 0),
+       assert(indicatorOpacity >= 0 && indicatorOpacity <= 1),
+       assert(elevation >= 0);
+
+  /// Total bar height.
+  final double barHeight;
+
+  /// Relative width allocated to the selected destination.
+  final double activeFlex;
+
+  /// Relative width allocated to inactive destinations.
+  final double inactiveFlex;
+
+  /// Height of the selected bubble.
+  final double activeHeight;
+
+  /// Horizontal padding inside the selected bubble.
+  final double activePadding;
+
+  /// Gap between selected icon and label.
+  final double gap;
+
+  /// Selected bubble radius.
+  final double borderRadius;
+
+  /// Opacity applied to the selected indicator color.
+  final double indicatorOpacity;
+
+  /// Surface elevation.
+  final double elevation;
+}
+
+/// Geometry for the translucent glass navigation family.
+@immutable
+class AdaptiveGlassNavStyleConfig extends AdaptiveBottomNavStyleConfig {
+  /// Creates glass navigation configuration.
+  const AdaptiveGlassNavStyleConfig({
+    this.barHeight = 66,
+    this.horizontalMargin = 12,
+    this.bottomMargin = 8,
+    this.borderRadius = 28,
+    this.blurSigma = 16,
+    this.surfaceOpacity = 0.76,
+    this.edgeInset = 4,
+  }) : assert(barHeight >= 56),
+       assert(horizontalMargin >= 0),
+       assert(bottomMargin >= 0),
+       assert(borderRadius >= 0),
+       assert(blurSigma >= 0),
+       assert(surfaceOpacity >= 0 && surfaceOpacity <= 1),
+       assert(edgeInset >= 0);
+
+  /// Total glass surface height.
+  final double barHeight;
+
+  /// Horizontal viewport inset.
+  final double horizontalMargin;
+
+  /// Bottom safe-area offset.
+  final double bottomMargin;
+
+  /// Surface corner radius.
+  final double borderRadius;
+
+  /// Backdrop blur sigma.
+  final double blurSigma;
+
+  /// Surface opacity applied over the blurred backdrop.
+  final double surfaceOpacity;
+
+  /// Inner edge inset before equal destination slots.
+  final double edgeInset;
+}
+
+/// Geometry for the low-chrome minimal navigation family.
+@immutable
+class AdaptiveMinimalNavStyleConfig extends AdaptiveBottomNavStyleConfig {
+  /// Creates minimal navigation configuration.
+  const AdaptiveMinimalNavStyleConfig({
+    this.barHeight = 64,
+    this.indicatorWidth = 24,
+    this.indicatorHeight = 3,
+    this.itemHorizontalPadding = 2,
+  }) : assert(barHeight >= 56),
+       assert(indicatorWidth > 0),
+       assert(indicatorHeight > 0),
+       assert(itemHorizontalPadding >= 0);
+
+  /// Total minimal bar height.
+  final double barHeight;
+
+  /// Width of the selected underline indicator.
+  final double indicatorWidth;
+
+  /// Height of the selected underline indicator.
+  final double indicatorHeight;
+
+  /// Horizontal spacing inside each equal destination slot.
+  final double itemHorizontalPadding;
+}
+
 /// Geometry for a persistent-bottom-nav-bar style expanding destination.
 @immutable
 class AdaptivePersistentNavStyleConfig extends AdaptiveBottomNavStyleConfig {
