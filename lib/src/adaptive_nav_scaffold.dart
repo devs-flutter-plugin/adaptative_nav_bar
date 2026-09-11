@@ -442,32 +442,32 @@ class _AdaptiveMaterialNavigationTheme extends StatelessWidget {
           backgroundColor: config.theme.backgroundColor,
           indicatorColor: config.theme.indicatorColor,
           elevation: config.theme.elevation,
-          iconTheme: WidgetStateProperty.resolveWith<IconThemeData?>(
-            (Set<WidgetState> states) {
-              final bool isSelected = states.contains(WidgetState.selected);
-              final bool isDisabled = states.contains(WidgetState.disabled);
-              return IconThemeData(
-                color: isSelected ? selected : foreground,
-                size: isSelected
-                    ? config.theme.selectedIconSize
-                    : config.theme.iconSize,
-                opacity: isDisabled ? disabledOpacity : 1,
-              );
-            },
-          ),
-          labelTextStyle: WidgetStateProperty.resolveWith<TextStyle?>(
-            (Set<WidgetState> states) {
-              final bool isSelected = states.contains(WidgetState.selected);
-              final bool isDisabled = states.contains(WidgetState.disabled);
-              return labelStyle?.copyWith(
-                color: isSelected ? selected : foreground,
-              ).copyWith(
-                color: (isSelected ? selected : foreground)?.withValues(
-                  alpha: isDisabled ? disabledOpacity : 1,
-                ),
-              );
-            },
-          ),
+          iconTheme: WidgetStateProperty.resolveWith<IconThemeData?>((
+            Set<WidgetState> states,
+          ) {
+            final bool isSelected = states.contains(WidgetState.selected);
+            final bool isDisabled = states.contains(WidgetState.disabled);
+            return IconThemeData(
+              color: isSelected ? selected : foreground,
+              size: isSelected
+                  ? config.theme.selectedIconSize
+                  : config.theme.iconSize,
+              opacity: isDisabled ? disabledOpacity : 1,
+            );
+          }),
+          labelTextStyle: WidgetStateProperty.resolveWith<TextStyle?>((
+            Set<WidgetState> states,
+          ) {
+            final bool isSelected = states.contains(WidgetState.selected);
+            final bool isDisabled = states.contains(WidgetState.disabled);
+            return labelStyle
+                ?.copyWith(color: isSelected ? selected : foreground)
+                .copyWith(
+                  color: (isSelected ? selected : foreground)?.withValues(
+                    alpha: isDisabled ? disabledOpacity : 1,
+                  ),
+                );
+          }),
         ),
         navigationRailTheme: theme.navigationRailTheme.copyWith(
           backgroundColor: config.theme.backgroundColor,

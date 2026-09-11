@@ -82,10 +82,33 @@ class AdaptiveReferenceBottomNavRenderer extends StatelessWidget {
           const AdaptiveStylishNavStyleConfig(),
         ).barHeight,
       AdaptiveBottomNavStyle.centerRaised => 108,
-      AdaptiveBottomNavStyle.pill => 76,
-      AdaptiveBottomNavStyle.bubble => 72,
-      AdaptiveBottomNavStyle.glass => 78,
-      AdaptiveBottomNavStyle.minimal => 66,
+      AdaptiveBottomNavStyle.pill =>
+        _configOf<AdaptivePillNavStyleConfig>(
+              presentation,
+              const AdaptivePillNavStyleConfig(),
+            ).barHeight +
+            _configOf<AdaptivePillNavStyleConfig>(
+              presentation,
+              const AdaptivePillNavStyleConfig(),
+            ).bottomMargin,
+      AdaptiveBottomNavStyle.bubble => _configOf<AdaptiveBubbleNavStyleConfig>(
+        presentation,
+        const AdaptiveBubbleNavStyleConfig(),
+      ).barHeight,
+      AdaptiveBottomNavStyle.glass =>
+        _configOf<AdaptiveGlassNavStyleConfig>(
+              presentation,
+              const AdaptiveGlassNavStyleConfig(),
+            ).barHeight +
+            _configOf<AdaptiveGlassNavStyleConfig>(
+              presentation,
+              const AdaptiveGlassNavStyleConfig(),
+            ).bottomMargin,
+      AdaptiveBottomNavStyle.minimal =>
+        _configOf<AdaptiveMinimalNavStyleConfig>(
+          presentation,
+          const AdaptiveMinimalNavStyleConfig(),
+        ).barHeight,
     };
   }
 
@@ -124,13 +147,24 @@ class AdaptiveReferenceBottomNavRenderer extends StatelessWidget {
         config: config,
         motion: motion,
         hiddenIndex: raisedIndex,
-        height: 68,
-        radius: 30,
-        elevation: 1,
+        height: _config<AdaptivePillNavStyleConfig>(
+          const AdaptivePillNavStyleConfig(),
+        ).barHeight,
+        radius: _config<AdaptivePillNavStyleConfig>(
+          const AdaptivePillNavStyleConfig(),
+        ).borderRadius,
+        elevation: _config<AdaptivePillNavStyleConfig>(
+          const AdaptivePillNavStyleConfig(),
+        ).elevation,
         surfaceColor: _surface(context),
         labelMode: _LabelMode.all,
         indicatorMode: _IndicatorMode.iconPill,
-        edgeInset: 6,
+        edgeInset: _config<AdaptivePillNavStyleConfig>(
+          const AdaptivePillNavStyleConfig(),
+        ).edgeInset,
+        itemHorizontalPadding: _config<AdaptivePillNavStyleConfig>(
+          const AdaptivePillNavStyleConfig(),
+        ).itemHorizontalPadding,
       ),
       AdaptiveBottomNavStyle.notch => _MovingNotchBar(
         config: config,
@@ -142,23 +176,40 @@ class AdaptiveReferenceBottomNavRenderer extends StatelessWidget {
       AdaptiveBottomNavStyle.bubble => _BubbleBar(
         config: config,
         motion: motion,
+        style: _config<AdaptiveBubbleNavStyleConfig>(
+          const AdaptiveBubbleNavStyleConfig(),
+        ),
         hiddenIndex: raisedIndex,
       ),
       AdaptiveBottomNavStyle.glass => _GlassBar(
         config: config,
         motion: motion,
+        style: _config<AdaptiveGlassNavStyleConfig>(
+          const AdaptiveGlassNavStyleConfig(),
+        ),
         hiddenIndex: raisedIndex,
       ),
       AdaptiveBottomNavStyle.minimal => _EqualBar(
         config: config,
         motion: motion,
         hiddenIndex: raisedIndex,
-        height: 64,
+        height: _config<AdaptiveMinimalNavStyleConfig>(
+          const AdaptiveMinimalNavStyleConfig(),
+        ).barHeight,
         radius: 0,
         elevation: 0,
-        surfaceColor: const Color(0x00000000),
+        surfaceColor: Colors.transparent,
         labelMode: _LabelMode.all,
         indicatorMode: _IndicatorMode.underline,
+        itemHorizontalPadding: _config<AdaptiveMinimalNavStyleConfig>(
+          const AdaptiveMinimalNavStyleConfig(),
+        ).itemHorizontalPadding,
+        underlineWidth: _config<AdaptiveMinimalNavStyleConfig>(
+          const AdaptiveMinimalNavStyleConfig(),
+        ).indicatorWidth,
+        underlineHeight: _config<AdaptiveMinimalNavStyleConfig>(
+          const AdaptiveMinimalNavStyleConfig(),
+        ).indicatorHeight,
       ),
       AdaptiveBottomNavStyle.persistent => _PersistentBar(
         config: config,
@@ -269,8 +320,12 @@ class AdaptiveReferenceBottomNavRenderer extends StatelessWidget {
       AdaptiveBottomNavStyle.notch => _config<AdaptiveNotchNavStyleConfig>(
         const AdaptiveNotchNavStyleConfig(),
       ).horizontalMargin,
-      AdaptiveBottomNavStyle.pill => 10,
-      AdaptiveBottomNavStyle.glass => 12,
+      AdaptiveBottomNavStyle.pill => _config<AdaptivePillNavStyleConfig>(
+        const AdaptivePillNavStyleConfig(),
+      ).horizontalMargin,
+      AdaptiveBottomNavStyle.glass => _config<AdaptiveGlassNavStyleConfig>(
+        const AdaptiveGlassNavStyleConfig(),
+      ).horizontalMargin,
       _ => 0,
     };
   }
@@ -288,7 +343,12 @@ class AdaptiveReferenceBottomNavRenderer extends StatelessWidget {
         _config<AdaptiveCenterRaisedNavStyleConfig>(
           const AdaptiveCenterRaisedNavStyleConfig(),
         ).bottomMargin,
-      AdaptiveBottomNavStyle.pill || AdaptiveBottomNavStyle.glass => 8,
+      AdaptiveBottomNavStyle.pill => _config<AdaptivePillNavStyleConfig>(
+        const AdaptivePillNavStyleConfig(),
+      ).bottomMargin,
+      AdaptiveBottomNavStyle.glass => _config<AdaptiveGlassNavStyleConfig>(
+        const AdaptiveGlassNavStyleConfig(),
+      ).bottomMargin,
       _ => 0,
     };
   }
@@ -305,6 +365,10 @@ class AdaptiveReferenceBottomNavRenderer extends StatelessWidget {
     final bool valid = switch (presentation.bottomStyle) {
       AdaptiveBottomNavStyle.floating =>
         value is AdaptiveFloatingNavStyleConfig,
+      AdaptiveBottomNavStyle.pill => value is AdaptivePillNavStyleConfig,
+      AdaptiveBottomNavStyle.bubble => value is AdaptiveBubbleNavStyleConfig,
+      AdaptiveBottomNavStyle.glass => value is AdaptiveGlassNavStyleConfig,
+      AdaptiveBottomNavStyle.minimal => value is AdaptiveMinimalNavStyleConfig,
       AdaptiveBottomNavStyle.notch => value is AdaptiveNotchNavStyleConfig,
       AdaptiveBottomNavStyle.persistent =>
         value is AdaptivePersistentNavStyleConfig,
@@ -379,6 +443,8 @@ class _EqualBar extends StatelessWidget {
     this.hiddenIndex,
     this.itemHorizontalPadding = 2,
     this.edgeInset = 0,
+    this.underlineWidth = 20,
+    this.underlineHeight = 3,
     this.topOnlyRadius = false,
   });
 
@@ -393,6 +459,8 @@ class _EqualBar extends StatelessWidget {
   final int? hiddenIndex;
   final double itemHorizontalPadding;
   final double edgeInset;
+  final double underlineWidth;
+  final double underlineHeight;
   final bool topOnlyRadius;
 
   @override
@@ -428,6 +496,8 @@ class _EqualBar extends StatelessWidget {
                             motion: motion,
                             labelMode: labelMode,
                             indicatorMode: indicatorMode,
+                            underlineWidth: underlineWidth,
+                            underlineHeight: underlineHeight,
                             onTap: () => config.onDestinationSelected(index),
                           ),
                   ),
@@ -448,6 +518,8 @@ class _EqualDestination extends StatelessWidget {
     required this.motion,
     required this.labelMode,
     required this.indicatorMode,
+    required this.underlineWidth,
+    required this.underlineHeight,
     required this.onTap,
     super.key,
   });
@@ -458,6 +530,8 @@ class _EqualDestination extends StatelessWidget {
   final AdaptiveNavMotion motion;
   final _LabelMode labelMode;
   final _IndicatorMode indicatorMode;
+  final double underlineWidth;
+  final double underlineHeight;
   final VoidCallback onTap;
 
   @override
@@ -477,7 +551,10 @@ class _EqualDestination extends StatelessWidget {
     };
 
     Widget icon = IconTheme(
-      data: IconThemeData(color: selected ? selectedColor : normalColor),
+      data: IconThemeData(
+        color: selected ? selectedColor : normalColor,
+        size: selected ? config.theme.selectedIconSize : config.theme.iconSize,
+      ),
       child: destination.buildIcon(selected: selected),
     );
 
@@ -489,11 +566,11 @@ class _EqualDestination extends StatelessWidget {
         width: selected ? 48 : 40,
         height: 34,
         decoration: BoxDecoration(
-          color: selected ? indicator : const Color(0x00000000),
+          color: selected ? indicator : Colors.transparent,
           borderRadius: BorderRadius.circular(18),
         ),
         child: Material(
-          color: const Color(0x00000000),
+          color: Colors.transparent,
           borderRadius: BorderRadius.circular(18),
           clipBehavior: Clip.antiAlias,
           child: InkWell(
@@ -513,8 +590,8 @@ class _EqualDestination extends StatelessWidget {
         key: ValueKey<String>('adaptive-indicator-${destination.label}'),
         duration: motion.duration,
         curve: motion.curve,
-        width: selected ? 20 : 0,
-        height: 3,
+        width: selected ? underlineWidth : 0,
+        height: underlineHeight,
         decoration: BoxDecoration(
           color: selectedColor,
           borderRadius: BorderRadius.circular(2),
@@ -715,11 +792,13 @@ class _BubbleBar extends StatelessWidget {
   const _BubbleBar({
     required this.config,
     required this.motion,
+    required this.style,
     this.hiddenIndex,
   });
 
   final AdaptiveNavBarConfig config;
   final AdaptiveNavMotion motion;
+  final AdaptiveBubbleNavStyleConfig style;
   final int? hiddenIndex;
 
   @override
@@ -727,9 +806,9 @@ class _BubbleBar extends StatelessWidget {
     return Material(
       color:
           config.theme.backgroundColor ?? Theme.of(context).colorScheme.surface,
-      elevation: 1,
+      elevation: style.elevation,
       child: SizedBox(
-        height: 70,
+        height: style.barHeight,
         child: LayoutBuilder(
           builder: (BuildContext context, BoxConstraints constraints) {
             final List<double> widths = hiddenIndex == null
@@ -737,8 +816,8 @@ class _BubbleBar extends StatelessWidget {
                     constraints.maxWidth,
                     config.destinations.length,
                     config.selectedIndex,
-                    1.45,
-                    1,
+                    style.activeFlex,
+                    style.inactiveFlex,
                   )
                 : _equalWidths(
                     constraints.maxWidth,
@@ -757,11 +836,11 @@ class _BubbleBar extends StatelessWidget {
                             selected: index == config.selectedIndex,
                             config: config,
                             motion: motion,
-                            activeHeight: 44,
-                            activePadding: 10,
-                            gap: 6,
-                            borderRadius: 24,
-                            indicatorOpacity: 0.72,
+                            activeHeight: style.activeHeight,
+                            activePadding: style.activePadding,
+                            gap: style.gap,
+                            borderRadius: style.borderRadius,
+                            indicatorOpacity: style.indicatorOpacity,
                             showOnlySelectedLabel: true,
                             onTap: () => config.onDestinationSelected(index),
                           ),
@@ -815,7 +894,10 @@ class _CapsuleDestination extends StatelessWidget {
             .withValues(alpha: indicatorOpacity);
 
     final Widget icon = IconTheme(
-      data: IconThemeData(color: selected ? selectedColor : normalColor),
+      data: IconThemeData(
+        color: selected ? selectedColor : normalColor,
+        size: selected ? config.theme.selectedIconSize : config.theme.iconSize,
+      ),
       child: destination.buildIcon(selected: selected),
     );
 
@@ -831,7 +913,7 @@ class _CapsuleDestination extends StatelessWidget {
               borderRadius: BorderRadius.circular(borderRadius),
             ),
             child: Material(
-              color: const Color(0x00000000),
+              color: Colors.transparent,
               borderRadius: BorderRadius.circular(borderRadius),
               clipBehavior: Clip.antiAlias,
               child: InkWell(
@@ -1090,33 +1172,38 @@ class _GlassBar extends StatelessWidget {
   const _GlassBar({
     required this.config,
     required this.motion,
+    required this.style,
     this.hiddenIndex,
   });
 
   final AdaptiveNavBarConfig config;
   final AdaptiveNavMotion motion;
+  final AdaptiveGlassNavStyleConfig style;
   final int? hiddenIndex;
 
   @override
   Widget build(BuildContext context) {
-    final BorderRadius radius = BorderRadius.circular(28);
+    final BorderRadius radius = BorderRadius.circular(style.borderRadius);
     final Color surface =
         config.theme.backgroundColor ?? Theme.of(context).colorScheme.surface;
     return ClipRRect(
       borderRadius: radius,
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+        filter: ImageFilter.blur(
+          sigmaX: style.blurSigma,
+          sigmaY: style.blurSigma,
+        ),
         child: _EqualBar(
           config: config,
           motion: motion,
           hiddenIndex: hiddenIndex,
-          height: 66,
-          radius: 28,
+          height: style.barHeight,
+          radius: style.borderRadius,
           elevation: 0,
-          surfaceColor: surface.withValues(alpha: 0.76),
+          surfaceColor: surface.withValues(alpha: style.surfaceOpacity),
           labelMode: _LabelMode.all,
           indicatorMode: _IndicatorMode.iconPill,
-          edgeInset: 4,
+          edgeInset: style.edgeInset,
         ),
       ),
     );

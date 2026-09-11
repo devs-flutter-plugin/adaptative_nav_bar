@@ -153,11 +153,7 @@ class AdaptiveNavThemeData extends ThemeExtension<AdaptiveNavThemeData> {
         other.selectedIconSize,
         t,
       ),
-      disabledOpacity: _lerpDouble(
-        disabledOpacity,
-        other.disabledOpacity,
-        t,
-      ),
+      disabledOpacity: _lerpDouble(disabledOpacity, other.disabledOpacity, t),
     );
   }
 
