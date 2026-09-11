@@ -314,7 +314,10 @@ class AdaptiveReferenceBottomNavRenderer extends StatelessWidget {
         value is AdaptiveCenterRaisedNavStyleConfig,
       _ => true,
     };
-    assert(valid, 'styleConfig does not match ${presentation.bottomStyle.name}.');
+    assert(
+      valid,
+      'styleConfig does not match ${presentation.bottomStyle.name}.',
+    );
   }
 
   static int _resolveRaisedIndex(AdaptiveRaisedNavItem item, int count) {
@@ -502,11 +505,7 @@ class _EqualDestination extends StatelessWidget {
         ),
       );
     } else {
-      icon = SizedBox(
-        width: 48,
-        height: 34,
-        child: Center(child: icon),
-      );
+      icon = SizedBox(width: 48, height: 34, child: Center(child: icon));
     }
 
     final Widget indicatorWidget = switch (indicatorMode) {
@@ -527,10 +526,7 @@ class _EqualDestination extends StatelessWidget {
         curve: motion.curve,
         width: selected ? 6 : 0,
         height: selected ? 6 : 0,
-        decoration: BoxDecoration(
-          color: selectedColor,
-          shape: BoxShape.circle,
-        ),
+        decoration: BoxDecoration(color: selectedColor, shape: BoxShape.circle),
       ),
       _ => const SizedBox.shrink(),
     };
@@ -587,7 +583,8 @@ class _GoogleBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: config.theme.backgroundColor ?? Theme.of(context).colorScheme.surface,
+      color:
+          config.theme.backgroundColor ?? Theme.of(context).colorScheme.surface,
       elevation: style.elevation,
       child: SizedBox(
         height: style.barHeight,
@@ -658,7 +655,8 @@ class _PersistentBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: config.theme.backgroundColor ?? Theme.of(context).colorScheme.surface,
+      color:
+          config.theme.backgroundColor ?? Theme.of(context).colorScheme.surface,
       elevation: style.elevation,
       child: SizedBox(
         height: style.barHeight,
@@ -727,7 +725,8 @@ class _BubbleBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: config.theme.backgroundColor ?? Theme.of(context).colorScheme.surface,
+      color:
+          config.theme.backgroundColor ?? Theme.of(context).colorScheme.surface,
       elevation: 1,
       child: SizedBox(
         height: 70,
@@ -866,11 +865,7 @@ class _CapsuleDestination extends StatelessWidget {
               ),
             ),
           )
-        : SizedBox(
-            width: 48,
-            height: 48,
-            child: Center(child: icon),
-          );
+        : SizedBox(width: 48, height: 48, child: Center(child: icon));
 
     return _DestinationSemantics(
       destination: destination,
@@ -1167,12 +1162,13 @@ class _MovingNotchBarState extends State<_MovingNotchBar>
       _controller.duration = widget.motion.duration;
     }
     if (oldWidget.config.selectedIndex != widget.config.selectedIndex) {
-      _position = Tween<double>(
-        begin: _position.value,
-        end: widget.config.selectedIndex.toDouble(),
-      ).animate(
-        CurvedAnimation(parent: _controller, curve: widget.motion.curve),
-      );
+      _position =
+          Tween<double>(
+            begin: _position.value,
+            end: widget.config.selectedIndex.toDouble(),
+          ).animate(
+            CurvedAnimation(parent: _controller, curve: widget.motion.curve),
+          );
       _controller.forward(from: 0);
     }
   }
@@ -1201,9 +1197,9 @@ class _MovingNotchBarState extends State<_MovingNotchBar>
             builder: (BuildContext context, BoxConstraints constraints) {
               final double slotWidth =
                   constraints.maxWidth / widget.config.destinations.length;
-              final double logicalCenter =
-                  slotWidth * position + slotWidth / 2;
-              final double center = Directionality.of(context) == TextDirection.rtl
+              final double logicalCenter = slotWidth * position + slotWidth / 2;
+              final double center =
+                  Directionality.of(context) == TextDirection.rtl
                   ? constraints.maxWidth - logicalCenter
                   : logicalCenter;
               return Stack(
@@ -1229,7 +1225,10 @@ class _MovingNotchBarState extends State<_MovingNotchBar>
                     top: widget.style.contentTop,
                     child: Row(
                       children: <Widget>[
-                        for (final (int index, AdaptiveNavDestination destination)
+                        for (final (
+                              int index,
+                              AdaptiveNavDestination destination,
+                            )
                             in widget.config.destinations.indexed)
                           Expanded(
                             child: index == selectedIndex
@@ -1391,7 +1390,8 @@ class _RaisedDestinationOverlay extends StatelessWidget {
     final bool selected = config.selectedIndex == raisedIndex;
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
-        final double slotWidth = constraints.maxWidth / config.destinations.length;
+        final double slotWidth =
+            constraints.maxWidth / config.destinations.length;
         final double start =
             slotWidth * raisedIndex + (slotWidth - raisedItem.size) / 2;
         return Stack(

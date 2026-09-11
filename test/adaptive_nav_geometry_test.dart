@@ -81,66 +81,71 @@ void main() {
     }
   }
 
-  testWidgets('google and persistent weighted slots remain inside the surface', (
-    WidgetTester tester,
-  ) async {
-    await _setSurface(tester, const Size(320, 800));
+  testWidgets(
+    'google and persistent weighted slots remain inside the surface',
+    (WidgetTester tester) async {
+      await _setSurface(tester, const Size(320, 800));
 
-    for (final AdaptiveBottomNavStyle style in <AdaptiveBottomNavStyle>[
-      AdaptiveBottomNavStyle.google,
-      AdaptiveBottomNavStyle.persistent,
-    ]) {
-      await tester.pumpWidget(_app(style: style, selectedIndex: 4));
+      for (final AdaptiveBottomNavStyle style in <AdaptiveBottomNavStyle>[
+        AdaptiveBottomNavStyle.google,
+        AdaptiveBottomNavStyle.persistent,
+      ]) {
+        await tester.pumpWidget(_app(style: style, selectedIndex: 4));
+        await tester.pumpAndSettle();
+
+        final Rect surfaceRect = tester.getRect(
+          find.byKey(const ValueKey<String>('adaptive-bottom-surface')),
+        );
+        final String prefix = style == AdaptiveBottomNavStyle.google
+            ? 'google-slot'
+            : 'persistent-slot';
+        final Rect first = tester.getRect(
+          find.byKey(ValueKey<String>('$prefix-0')),
+        );
+        final Rect last = tester.getRect(
+          find.byKey(ValueKey<String>('$prefix-4')),
+        );
+
+        expect(first.left, greaterThanOrEqualTo(surfaceRect.left - 0.5));
+        expect(last.right, lessThanOrEqualTo(surfaceRect.right + 0.5));
+        expect(tester.takeException(), isNull);
+      }
+    },
+  );
+
+  testWidgets(
+    'raised middle destination stays centered and does not steal width',
+    (WidgetTester tester) async {
+      await _setSurface(tester, const Size(390, 800));
+      await tester.pumpWidget(
+        MaterialApp(
+          home: AdaptiveNavScaffold(
+            selectedIndex: 2,
+            destinations: _destinations,
+            compact: const AdaptiveNavPresentation.bottom(
+              bottomStyle: AdaptiveBottomNavStyle.centerRaised,
+              raisedItem: AdaptiveRaisedNavItem(index: 2, size: 60, offset: 20),
+            ),
+            onDestinationSelected: (_) {},
+            body: const SizedBox.expand(),
+          ),
+        ),
+      );
       await tester.pumpAndSettle();
 
-      final Rect surfaceRect = tester.getRect(
-        find.byKey(const ValueKey<String>('adaptive-bottom-surface')),
+      final Finder button = find.byKey(
+        const ValueKey<String>('adaptive-raised-button'),
       );
-      final String prefix = style == AdaptiveBottomNavStyle.google
-          ? 'google-slot'
-          : 'persistent-slot';
-      final Rect first = tester.getRect(
-        find.byKey(ValueKey<String>('$prefix-0')),
-      );
-      final Rect last = tester.getRect(
-        find.byKey(ValueKey<String>('$prefix-4')),
-      );
-
-      expect(first.left, greaterThanOrEqualTo(surfaceRect.left - 0.5));
-      expect(last.right, lessThanOrEqualTo(surfaceRect.right + 0.5));
+      expect(tester.getCenter(button).dx, closeTo(195, 0.5));
       expect(tester.takeException(), isNull);
-    }
-  });
-
-  testWidgets('raised middle destination stays centered and does not steal width', (
-    WidgetTester tester,
-  ) async {
-    await _setSurface(tester, const Size(390, 800));
-    await tester.pumpWidget(
-      MaterialApp(
-        home: AdaptiveNavScaffold(
-          selectedIndex: 2,
-          destinations: _destinations,
-          compact: const AdaptiveNavPresentation.bottom(
-            bottomStyle: AdaptiveBottomNavStyle.centerRaised,
-            raisedItem: AdaptiveRaisedNavItem(index: 2, size: 60, offset: 20),
-          ),
-          onDestinationSelected: (_) {},
-          body: const SizedBox.expand(),
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    final Finder button = find.byKey(
-      const ValueKey<String>('adaptive-raised-button'),
-    );
-    expect(tester.getCenter(button).dx, closeTo(195, 0.5));
-    expect(tester.takeException(), isNull);
-  });
+    },
+  );
 }
 
-Widget _app({required AdaptiveBottomNavStyle style, required int selectedIndex}) {
+Widget _app({
+  required AdaptiveBottomNavStyle style,
+  required int selectedIndex,
+}) {
   return MaterialApp(
     home: AdaptiveNavScaffold(
       selectedIndex: selectedIndex,
