@@ -9,6 +9,24 @@ import 'adaptive_nav_destination.dart';
 import 'adaptive_nav_motion.dart';
 import 'adaptive_nav_presentation.dart';
 
+abstract final class _BottomNavMetrics {
+  static const double minimumTouchTarget = 48;
+  static const double selectedCapsuleMaxWidth = 132;
+  static const double capsuleInnerHorizontalPadding = 2;
+  static const double selectedIndicatorWidth = 48;
+  static const double unselectedIndicatorWidth = 40;
+  static const double iconIndicatorHeight = 34;
+  static const double iconIndicatorRadius = 18;
+  static const double underlineRadius = 2;
+  static const double labelGap = 2;
+  static const double indicatorGap = 3;
+  static const double dotSize = 6;
+  static const double iconBoxWidth = 48;
+  static const double iconBoxHeight = 30;
+  static const double stylishSurfaceRadius = 22;
+  static const double defaultSurfaceElevation = 1;
+}
+
 /// Unified built-in bottom navigation renderer.
 ///
 /// The renderer keeps the package router-agnostic while separating three
@@ -563,26 +581,38 @@ class _EqualDestination extends StatelessWidget {
         key: ValueKey<String>('adaptive-indicator-${destination.label}'),
         duration: motion.duration,
         curve: motion.curve,
-        width: selected ? 48 : 40,
-        height: 34,
+        width: selected
+            ? _BottomNavMetrics.selectedIndicatorWidth
+            : _BottomNavMetrics.unselectedIndicatorWidth,
+        height: _BottomNavMetrics.iconIndicatorHeight,
         decoration: BoxDecoration(
           color: selected ? indicator : Colors.transparent,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(
+            _BottomNavMetrics.iconIndicatorRadius,
+          ),
         ),
         child: Material(
           color: Colors.transparent,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(
+            _BottomNavMetrics.iconIndicatorRadius,
+          ),
           clipBehavior: Clip.antiAlias,
           child: InkWell(
             excludeFromSemantics: true,
             onTap: destination.enabled ? onTap : null,
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(
+              _BottomNavMetrics.iconIndicatorRadius,
+            ),
             child: Center(child: icon),
           ),
         ),
       );
     } else {
-      icon = SizedBox(width: 48, height: 34, child: Center(child: icon));
+      icon = SizedBox(
+        width: _BottomNavMetrics.unselectedIndicatorWidth,
+        height: _BottomNavMetrics.iconIndicatorHeight,
+        child: Center(child: icon),
+      );
     }
 
     final Widget indicatorWidget = switch (indicatorMode) {
@@ -594,15 +624,17 @@ class _EqualDestination extends StatelessWidget {
         height: underlineHeight,
         decoration: BoxDecoration(
           color: selectedColor,
-          borderRadius: BorderRadius.circular(2),
+          borderRadius: BorderRadius.circular(
+            _BottomNavMetrics.underlineRadius,
+          ),
         ),
       ),
       _IndicatorMode.dot => AnimatedContainer(
         key: ValueKey<String>('adaptive-indicator-${destination.label}'),
         duration: motion.duration,
         curve: motion.curve,
-        width: selected ? 6 : 0,
-        height: selected ? 6 : 0,
+        width: selected ? _BottomNavMetrics.dotSize : 0,
+        height: selected ? _BottomNavMetrics.dotSize : 0,
         decoration: BoxDecoration(color: selectedColor, shape: BoxShape.circle),
       ),
       _ => const SizedBox.shrink(),
@@ -618,7 +650,7 @@ class _EqualDestination extends StatelessWidget {
         children: <Widget>[
           icon,
           if (showLabel) ...<Widget>[
-            const SizedBox(height: 2),
+            const SizedBox(height: _BottomNavMetrics.labelGap),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 2),
               child: Text(
@@ -635,7 +667,7 @@ class _EqualDestination extends StatelessWidget {
           ],
           if (indicatorMode == _IndicatorMode.underline ||
               indicatorMode == _IndicatorMode.dot) ...<Widget>[
-            const SizedBox(height: 3),
+            const SizedBox(height: _BottomNavMetrics.indicatorGap),
             indicatorWidget,
           ],
         ],
@@ -702,7 +734,6 @@ class _GoogleBar extends StatelessWidget {
                               activePadding: style.activeContentPadding,
                               gap: style.gap,
                               borderRadius: style.borderRadius,
-                              showOnlySelectedLabel: true,
                               onTap: () => config.onDestinationSelected(index),
                             ),
                     ),
@@ -774,7 +805,6 @@ class _PersistentBar extends StatelessWidget {
                               gap: style.gap,
                               borderRadius: style.borderRadius,
                               indicatorOpacity: style.indicatorOpacity,
-                              showOnlySelectedLabel: true,
                               onTap: () => config.onDestinationSelected(index),
                             ),
                     ),
@@ -841,7 +871,6 @@ class _BubbleBar extends StatelessWidget {
                             gap: style.gap,
                             borderRadius: style.borderRadius,
                             indicatorOpacity: style.indicatorOpacity,
-                            showOnlySelectedLabel: true,
                             onTap: () => config.onDestinationSelected(index),
                           ),
                   ),
@@ -864,7 +893,6 @@ class _CapsuleDestination extends StatelessWidget {
     required this.activePadding,
     required this.gap,
     required this.borderRadius,
-    required this.showOnlySelectedLabel,
     required this.onTap,
     this.indicatorOpacity = 1,
   });
@@ -878,7 +906,6 @@ class _CapsuleDestination extends StatelessWidget {
   final double gap;
   final double borderRadius;
   final double indicatorOpacity;
-  final bool showOnlySelectedLabel;
   final VoidCallback onTap;
 
   @override
@@ -906,7 +933,10 @@ class _CapsuleDestination extends StatelessWidget {
             duration: motion.duration,
             curve: motion.curve,
             height: activeHeight,
-            constraints: const BoxConstraints(minWidth: 48, maxWidth: 132),
+            constraints: const BoxConstraints(
+              minWidth: _BottomNavMetrics.minimumTouchTarget,
+              maxWidth: _BottomNavMetrics.selectedCapsuleMaxWidth,
+            ),
             padding: EdgeInsets.symmetric(horizontal: activePadding),
             decoration: BoxDecoration(
               color: indicator,
@@ -921,7 +951,9 @@ class _CapsuleDestination extends StatelessWidget {
                 onTap: destination.enabled ? onTap : null,
                 borderRadius: BorderRadius.circular(borderRadius),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: _BottomNavMetrics.capsuleInnerHorizontalPadding,
+                  ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     mainAxisSize: MainAxisSize.min,
@@ -947,13 +979,22 @@ class _CapsuleDestination extends StatelessWidget {
               ),
             ),
           )
-        : SizedBox(width: 48, height: 48, child: Center(child: icon));
+        : const SizedBox.square(
+            dimension: _BottomNavMetrics.minimumTouchTarget,
+          );
+
+    final Widget inactiveVisual = selected
+        ? visual
+        : SizedBox.square(
+            dimension: _BottomNavMetrics.minimumTouchTarget,
+            child: Center(child: icon),
+          );
 
     return _DestinationSemantics(
       destination: destination,
       selected: selected,
       onTap: onTap,
-      child: Center(child: visual),
+      child: Center(child: inactiveVisual),
     );
   }
 }
@@ -975,7 +1016,9 @@ class _StylishBar extends StatelessWidget {
   Widget build(BuildContext context) {
     if (style.variant == AdaptiveStylishVariant.blur) {
       return ClipRRect(
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(
+          _BottomNavMetrics.stylishSurfaceRadius,
+        ),
         child: BackdropFilter(
           filter: ImageFilter.blur(
             sigmaX: style.blurSigma,
@@ -1026,23 +1069,42 @@ class _StylishSurface extends StatelessWidget {
       elevation: transparent ? 0 : style.elevation,
       child: SizedBox(
         height: style.barHeight,
-        child: Row(
-          children: <Widget>[
-            for (final (int index, AdaptiveNavDestination destination)
-                in config.destinations.indexed)
-              Expanded(
-                child: index == hiddenIndex
-                    ? const SizedBox.expand()
-                    : _StylishDestination(
-                        destination: destination,
-                        selected: index == config.selectedIndex,
-                        config: config,
-                        motion: motion,
-                        style: style,
-                        onTap: () => config.onDestinationSelected(index),
-                      ),
-              ),
-          ],
+        child: LayoutBuilder(
+          builder: (BuildContext context, BoxConstraints constraints) {
+            final List<double> widths =
+                style.variant == AdaptiveStylishVariant.bubble &&
+                    hiddenIndex == null
+                ? _weightedWidths(
+                    constraints.maxWidth,
+                    config.destinations.length,
+                    config.selectedIndex,
+                    style.bubbleActiveFlex,
+                    1,
+                  )
+                : _equalWidths(
+                    constraints.maxWidth,
+                    config.destinations.length,
+                  );
+            return Row(
+              children: <Widget>[
+                for (final (int index, AdaptiveNavDestination destination)
+                    in config.destinations.indexed)
+                  SizedBox(
+                    width: widths[index],
+                    child: index == hiddenIndex
+                        ? const SizedBox.expand()
+                        : _StylishDestination(
+                            destination: destination,
+                            selected: index == config.selectedIndex,
+                            config: config,
+                            motion: motion,
+                            style: style,
+                            onTap: () => config.onDestinationSelected(index),
+                          ),
+                  ),
+              ],
+            );
+          },
         ),
       ),
     );
@@ -1079,7 +1141,6 @@ class _StylishDestination extends StatelessWidget {
         gap: 6,
         borderRadius: 22,
         indicatorOpacity: 0.72,
-        showOnlySelectedLabel: true,
         onTap: onTap,
       );
     }
@@ -1133,8 +1194,8 @@ class _StylishDestination extends StatelessWidget {
               curve: motion.curve,
               scale: selected ? style.selectedScale : 1,
               child: SizedBox(
-                width: 48,
-                height: 30,
+                width: _BottomNavMetrics.iconBoxWidth,
+                height: _BottomNavMetrics.iconBoxHeight,
                 child: Center(
                   child: IconTheme(
                     data: IconThemeData(
@@ -1147,7 +1208,7 @@ class _StylishDestination extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: _BottomNavMetrics.labelGap),
           Text(
             destination.label,
             maxLines: 1,
@@ -1159,7 +1220,7 @@ class _StylishDestination extends StatelessWidget {
             ),
           ),
           if (style.variant == AdaptiveStylishVariant.dot) ...<Widget>[
-            const SizedBox(height: 3),
+            const SizedBox(height: _BottomNavMetrics.indicatorGap),
             marker,
           ],
         ],
@@ -1303,7 +1364,7 @@ class _MovingNotchBarState extends State<_MovingNotchBar>
                       ),
                       child: Material(
                         color: surface,
-                        elevation: 1,
+                        elevation: _BottomNavMetrics.defaultSurfaceElevation,
                         child: const SizedBox.expand(),
                       ),
                     ),
@@ -1382,16 +1443,16 @@ class _NotchInactiveDestination extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
           SizedBox(
-            width: 48,
-            height: 30,
+            width: _BottomNavMetrics.iconBoxWidth,
+            height: _BottomNavMetrics.iconBoxHeight,
             child: Center(
               child: IconTheme(
-                data: IconThemeData(color: color),
+                data: IconThemeData(color: color, size: config.theme.iconSize),
                 child: destination.buildIcon(selected: false),
               ),
             ),
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: _BottomNavMetrics.labelGap),
           Text(
             destination.label,
             maxLines: 1,
@@ -1420,26 +1481,30 @@ class _NotchClipper extends CustomClipper<Path> {
 
   @override
   Path getClip(Size size) {
-    final double safeCenter = center.clamp(
-      radius * shoulderFactor,
-      size.width - radius * shoulderFactor,
+    final double availableHalfWidth = math.max(
+      0,
+      math.min(center, size.width - center),
+    );
+    final double effectiveRadius = math.max(
+      1,
+      math.min(radius, availableHalfWidth / shoulderFactor),
     );
     final Path path = Path()..moveTo(0, 0);
-    path.lineTo(safeCenter - radius * shoulderFactor, 0);
+    path.lineTo(center - effectiveRadius * shoulderFactor, 0);
     path.cubicTo(
-      safeCenter - radius,
+      center - effectiveRadius,
       0,
-      safeCenter - radius,
-      radius * depthFactor,
-      safeCenter,
-      radius * depthFactor,
+      center - effectiveRadius,
+      effectiveRadius * depthFactor,
+      center,
+      effectiveRadius * depthFactor,
     );
     path.cubicTo(
-      safeCenter + radius,
-      radius * depthFactor,
-      safeCenter + radius,
+      center + effectiveRadius,
+      effectiveRadius * depthFactor,
+      center + effectiveRadius,
       0,
-      safeCenter + radius * shoulderFactor,
+      center + effectiveRadius * shoulderFactor,
       0,
     );
     path.lineTo(size.width, 0);
@@ -1535,9 +1600,13 @@ class _RaisedVisual extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final Color background =
-        backgroundColor ?? Theme.of(context).colorScheme.inverseSurface;
+        backgroundColor ??
+        config.theme.indicatorColor ??
+        Theme.of(context).colorScheme.inverseSurface;
     final Color foreground =
-        foregroundColor ?? Theme.of(context).colorScheme.onInverseSurface;
+        foregroundColor ??
+        config.theme.selectedColor ??
+        Theme.of(context).colorScheme.onInverseSurface;
     return Semantics(
       button: true,
       selected: selected,
@@ -1549,6 +1618,7 @@ class _RaisedVisual extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             Material(
+              key: const ValueKey<String>('adaptive-raised-visual'),
               color: background,
               elevation: elevation,
               shape: const CircleBorder(),
@@ -1561,7 +1631,10 @@ class _RaisedVisual extends StatelessWidget {
                   dimension: size,
                   child: Center(
                     child: IconTheme(
-                      data: IconThemeData(color: foreground),
+                      data: IconThemeData(
+                        color: foreground,
+                        size: config.theme.selectedIconSize,
+                      ),
                       child: destination.buildIcon(selected: selected),
                     ),
                   ),
