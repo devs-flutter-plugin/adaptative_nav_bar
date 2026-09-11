@@ -49,9 +49,9 @@ class AdaptiveRaisedNavItem {
   /// Creates a raised navigation destination configuration.
   const AdaptiveRaisedNavItem({
     this.index,
-    this.size = 58,
-    this.offset = 18,
-    this.elevation = 6,
+    this.size = 60,
+    this.offset = 28,
+    this.elevation = 10,
     this.backgroundColor,
     this.foregroundColor,
     this.showLabel = true,
