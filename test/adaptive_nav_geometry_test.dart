@@ -114,7 +114,7 @@ void main() {
   );
 
   testWidgets(
-    'raised middle destination stays centered and does not steal width',
+    'raised middle destination stays centered and protrudes above the surface',
     (WidgetTester tester) async {
       await _setSurface(tester, const Size(390, 800));
       await tester.pumpWidget(
@@ -124,7 +124,12 @@ void main() {
             destinations: _destinations,
             compact: const AdaptiveNavPresentation.bottom(
               bottomStyle: AdaptiveBottomNavStyle.centerRaised,
-              raisedItem: AdaptiveRaisedNavItem(index: 2, size: 60, offset: 20),
+              raisedItem: AdaptiveRaisedNavItem(
+                index: 2,
+                size: 60,
+                offset: 28,
+                elevation: 10,
+              ),
             ),
             onDestinationSelected: (_) {},
             body: const SizedBox.expand(),
@@ -133,10 +138,17 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      final Finder surface = find.byKey(
+        const ValueKey<String>('adaptive-bottom-surface'),
+      );
       final Finder button = find.byKey(
         const ValueKey<String>('adaptive-raised-button'),
       );
+      final Rect surfaceRect = tester.getRect(surface);
+      final Rect buttonRect = tester.getRect(button);
+
       expect(tester.getCenter(button).dx, closeTo(195, 0.5));
+      expect(buttonRect.top, closeTo(surfaceRect.top - 28, 0.5));
       expect(tester.takeException(), isNull);
     },
   );
