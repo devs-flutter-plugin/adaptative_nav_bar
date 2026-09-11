@@ -18,6 +18,12 @@
 - Added scroll-aware hide/show behavior.
 - Added destination reselect callback.
 - Added `AdaptiveNavThemeData` ThemeExtension support.
+- Added shared icon sizing and disabled-opacity theme tokens across Material and custom renderers.
+- Added dedicated geometry configs for pill, bubble, glass, and minimal bottom styles.
+- Unified vertical rail/sidebar animation timing under `AdaptiveNavMotion`, including reduced-motion handling.
+- Centralized private bottom/vertical renderer metrics to remove scattered hardcoded dimensions.
+- Improved first/last notch positioning and raised-destination theme inheritance.
+- Added theme-token, style-config, and reduced-motion regression coverage.
 - Added GoRouter `StatefulShellRoute.indexedStack` example.
 - Added unit/widget tests and self-hosted CI with publish dry-run validation.
 - Migrated Material imports to the standalone official `material_ui` package.
