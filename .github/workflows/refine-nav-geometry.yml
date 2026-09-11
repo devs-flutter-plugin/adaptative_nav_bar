@@ -2,36 +2,29 @@ name: Refine navigation geometry
 
 on:
   push:
-    branches:
-      - feat/reference-bottom-styles
+    branches: [feat/reference-bottom-styles]
 
 permissions:
   contents: write
 
 jobs:
   refine:
-    if: github.actor != 'github-actions[bot]'
+    if: ${{ github.actor != 'github-actions[bot]' }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout feature branch
-        uses: actions/checkout@v6
+      - uses: actions/checkout@v6
         with:
           ref: feat/reference-bottom-styles
 
       - name: Refine renderer geometry
+        shell: bash
         run: |
+          python3 -c "from pathlib import Path; import re; p=Path('lib/src/adaptive_reference_bottom_nav_renderer.dart'); t=p.read_text(); t=re.sub(r'^\\s*showOnlySelectedLabel: true,\\n','',t,flags=re.M); t=t.replace('    required this.showOnlySelectedLabel,\\n','').replace('  final bool showOnlySelectedLabel;\\n',''); p.write_text(t)"
           python3 - <<'PY'
           from pathlib import Path
-          import re
-
-          path = Path('lib/src/adaptive_reference_bottom_nav_renderer.dart')
-          text = path.read_text()
-
-          text = re.sub(r'^\s*showOnlySelectedLabel: true,\n', '', text, flags=re.M)
-          text = text.replace('    required this.showOnlySelectedLabel,\n', '')
-          text = text.replace('  final bool showOnlySelectedLabel;\n', '')
-
-          old = '''    final double safeCenter = center.clamp(
+          p = Path('lib/src/adaptive_reference_bottom_nav_renderer.dart')
+          t = p.read_text()
+          old = """    final double safeCenter = center.clamp(
       radius * shoulderFactor,
       size.width - radius * shoulderFactor,
     );
@@ -52,8 +45,8 @@ jobs:
       0,
       safeCenter + radius * shoulderFactor,
       0,
-    );'''
-          new = '''    final double availableHalfWidth = math.max(
+    );"""
+          new = """    final double availableHalfWidth = math.max(
       0,
       math.min(center, size.width - center),
     );
@@ -78,33 +71,28 @@ jobs:
       0,
       center + effectiveRadius * shoulderFactor,
       0,
-    );'''
-          if old not in text:
+    );"""
+          if old not in t:
               raise SystemExit('notch geometry block not found')
-          text = text.replace(old, new)
-
-          # Give icon/label stacks deliberate breathing room without increasing
-          # the overall bar height.
-          text = text.replace('const SizedBox(height: 2),', 'const SizedBox(height: 4),')
-
-          path.write_text(text)
+          t = t.replace(old, new)
+          t = t.replace('const SizedBox(height: 2),', 'const SizedBox(height: 4),')
+          p.write_text(t)
           PY
 
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.47.2'
           channel: stable
           cache: false
 
-      - name: Apply canonical format
+      - name: Format
         run: dart format lib/src/adaptive_reference_bottom_nav_renderer.dart test/adaptive_nav_geometry_test.dart
 
-      - name: Remove temporary workflow and commit
+      - name: Commit source refinements
         run: |
-          git rm .github/workflows/refine-nav-geometry.yml
           git config user.name 'devs-flutter-plugin-ci'
           git config user.email '58450364+devstecnologia@users.noreply.github.com'
           git add lib/src/adaptive_reference_bottom_nav_renderer.dart test/adaptive_nav_geometry_test.dart
+          if git diff --cached --quiet; then exit 0; fi
           git commit -m 'fix: refine bottom navigation spacing and edge geometry'
           git push origin HEAD:feat/reference-bottom-styles
