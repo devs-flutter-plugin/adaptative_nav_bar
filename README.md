@@ -22,6 +22,7 @@ Adaptive, router-agnostic navigation for modern Flutter applications.
 - Scroll-aware hide/show behavior.
 - Destination reselect callback for scroll-to-top or branch-reset behavior.
 - Badges, selected icons, tooltips, disabled destinations, semantics, SafeArea handling, and reduced-motion support.
+- Shared theme tokens with per-style geometry configs.
 - No dependency on `go_router` in the package core.
 
 ## Requirements
@@ -138,6 +139,37 @@ The package does not import or wrap the reference packages. Each renderer is an 
 
 The floating implementation also keeps stable body spacing while hidden, uses SafeArea-aware positioning, and stays controlled by `AdaptiveNavScrollBehavior` rather than owning the application's scroll controller.
 
+## Style-specific configuration
+
+Application identity belongs in `AdaptiveNavThemeData`; renderer-specific geometry belongs in a style config. This keeps colors and typography consistent while allowing each visual family to preserve its own proportions.
+
+```dart
+compact: const AdaptiveNavPresentation.bottom(
+  bottomStyle: AdaptiveBottomNavStyle.google,
+  styleConfig: AdaptiveGoogleNavStyleConfig(
+    barHeight: 72,
+    activeFlex: 1.9,
+    inactiveFlex: 1,
+    borderRadius: 18,
+  ),
+),
+```
+
+Built-in configs include:
+
+```dart
+AdaptiveFloatingNavStyleConfig
+AdaptivePillNavStyleConfig
+AdaptiveBubbleNavStyleConfig
+AdaptiveGlassNavStyleConfig
+AdaptiveMinimalNavStyleConfig
+AdaptivePersistentNavStyleConfig
+AdaptiveGoogleNavStyleConfig
+AdaptiveStylishNavStyleConfig
+AdaptiveNotchNavStyleConfig
+AdaptiveCenterRaisedNavStyleConfig
+```
+
 ## Switching styles
 
 Only the presentation changes:
@@ -180,8 +212,8 @@ AdaptiveNavScaffold(
     raisedItem: AdaptiveRaisedNavItem(
       index: 2,
       size: 60,
-      offset: 20,
-      elevation: 7,
+      offset: 28,
+      elevation: 10,
     ),
   ),
   destinations: const <AdaptiveNavDestination>[
@@ -212,7 +244,7 @@ AdaptiveNavScaffold(
 )
 ```
 
-If `index` is omitted, the middle destination is raised automatically.
+If `index` is omitted, the middle destination is raised automatically. The default raised geometry is `size: 60`, `offset: 28`, and `elevation: 10`.
 
 The raised item is also composable with other custom bottom styles:
 
@@ -221,8 +253,9 @@ compact: const AdaptiveNavPresentation.bottom(
   bottomStyle: AdaptiveBottomNavStyle.google,
   raisedItem: AdaptiveRaisedNavItem(
     index: 2,
-    size: 58,
-    offset: 18,
+    size: 60,
+    offset: 28,
+    elevation: 10,
   ),
 ),
 ```
@@ -234,9 +267,9 @@ For a custom visual identity, configure the raised surface directly:
 ```dart
 raisedItem: AdaptiveRaisedNavItem(
   index: 2,
-  size: 62,
-  offset: 21,
-  elevation: 8,
+  size: 64,
+  offset: 30,
+  elevation: 12,
   backgroundColor: Colors.black,
   foregroundColor: Colors.white,
 ),
@@ -341,21 +374,34 @@ onDestinationReselected: (int index) {
 
 ## Theme
 
+`AdaptiveNavThemeData` is the shared application-identity layer. Built-in Material 3, custom bottom bars, rails, and sidebars all receive the same resolved color/typography/icon tokens.
+
 Per-instance overrides:
 
 ```dart
 AdaptiveNavScaffold(
   theme: AdaptiveNavThemeData(
     backgroundColor: Theme.of(context).colorScheme.surfaceContainer,
-    indicatorColor: Theme.of(context).colorScheme.primaryContainer,
+    foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
+    selectedColor: Theme.of(context).colorScheme.onSecondaryContainer,
+    indicatorColor: Theme.of(context).colorScheme.secondaryContainer,
     borderRadius: BorderRadius.circular(28),
     elevation: 4,
+    iconSize: 24,
+    selectedIconSize: 26,
+    disabledOpacity: 0.38,
   ),
   // ...
 )
 ```
 
+Available shared tokens are `backgroundColor`, `foregroundColor`, `selectedColor`, `indicatorColor`, `borderRadius`, `elevation`, `itemPadding`, `labelTextStyle`, `iconSize`, `selectedIconSize`, and `disabledOpacity`.
+
 Or register `AdaptiveNavThemeData` as a `ThemeExtension` on your app's `ThemeData.extensions`.
+
+## Motion and accessibility
+
+`AdaptiveNavMotion` controls navigation animation duration and curves across bottom, rail, and sidebar presentations. Vertical renderers do not keep separate hardcoded animation durations. When `MediaQuery.disableAnimations` is enabled, built-in navigation animations resolve to zero duration.
 
 ## Architecture
 
@@ -394,7 +440,7 @@ Android build
 Linux build
 ```
 
-Tests cover breakpoints, controller behavior, adaptive presentation selection, reselect behavior, custom builders, every built-in bottom/rail/sidebar style, narrow-rail overflow regression, and the raised middle destination.
+Tests cover breakpoints, controller behavior, adaptive presentation selection, reselect behavior, custom builders, every built-in bottom/rail/sidebar style, narrow-rail overflow regression, theme token propagation, reduced motion, style-specific geometry, and the raised middle destination.
 
 ## Pub.dev readiness
 
