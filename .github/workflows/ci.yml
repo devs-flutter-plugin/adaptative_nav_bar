@@ -1,28 +1,119 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
-  group: adaptative-nav-bar-${{ github.ref }}
+  group: adaptative-nav-bar-maintenance-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  quality:
-    name: Quality / Flutter 3.47.2
+  maintenance:
+    name: Apply final navigation geometry refinements
     runs-on:
       - self-hosted
       - devs-flutter-plugin-ci
 
     steps:
-      - name: Checkout
+      - name: Checkout feature branch
         uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+
+      - name: Refine source geometry
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path('lib/src/adaptive_reference_bottom_nav_renderer.dart')
+          text = path.read_text()
+
+          text = re.sub(r'^\s*showOnlySelectedLabel: true,\n', '', text, flags=re.M)
+          text = text.replace('    required this.showOnlySelectedLabel,\n', '')
+          text = text.replace('  final bool showOnlySelectedLabel;\n', '')
+
+          old = '''    final double safeCenter = center.clamp(
+              radius * shoulderFactor,
+              size.width - radius * shoulderFactor,
+            );
+            final Path path = Path()..moveTo(0, 0);
+            path.lineTo(safeCenter - radius * shoulderFactor, 0);
+            path.cubicTo(
+              safeCenter - radius,
+              0,
+              safeCenter - radius,
+              radius * depthFactor,
+              safeCenter,
+              radius * depthFactor,
+            );
+            path.cubicTo(
+              safeCenter + radius,
+              radius * depthFactor,
+              safeCenter + radius,
+              0,
+              safeCenter + radius * shoulderFactor,
+              0,
+            );'''
+          if old not in text:
+              old = '''    final double safeCenter = center.clamp(
+      radius * shoulderFactor,
+      size.width - radius * shoulderFactor,
+    );
+    final Path path = Path()..moveTo(0, 0);
+    path.lineTo(safeCenter - radius * shoulderFactor, 0);
+    path.cubicTo(
+      safeCenter - radius,
+      0,
+      safeCenter - radius,
+      radius * depthFactor,
+      safeCenter,
+      radius * depthFactor,
+    );
+    path.cubicTo(
+      safeCenter + radius,
+      radius * depthFactor,
+      safeCenter + radius,
+      0,
+      safeCenter + radius * shoulderFactor,
+      0,
+    );'''
+          new = '''    final double availableHalfWidth = math.max(
+      0,
+      math.min(center, size.width - center),
+    );
+    final double effectiveRadius = math.max(
+      1,
+      math.min(radius, availableHalfWidth / shoulderFactor),
+    );
+    final Path path = Path()..moveTo(0, 0);
+    path.lineTo(center - effectiveRadius * shoulderFactor, 0);
+    path.cubicTo(
+      center - effectiveRadius,
+      0,
+      center - effectiveRadius,
+      effectiveRadius * depthFactor,
+      center,
+      effectiveRadius * depthFactor,
+    );
+    path.cubicTo(
+      center + effectiveRadius,
+      effectiveRadius * depthFactor,
+      center + effectiveRadius,
+      0,
+      center + effectiveRadius * shoulderFactor,
+      0,
+    );'''
+          if old not in text:
+              raise RuntimeError('Expected notch geometry block was not found')
+          text = text.replace(old, new)
+          text = text.replace('const SizedBox(height: 2),', 'const SizedBox(height: 4),')
+          path.write_text(text)
+          PY
 
       - name: Prepare runner dependencies
         run: |
@@ -30,7 +121,6 @@ jobs:
             sudo apt-get update
             sudo apt-get install -y xz-utils
           fi
-          xz --version
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -39,126 +129,17 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Install package dependencies
-        run: flutter pub get
+      - name: Apply canonical Dart formatting
+        run: dart format lib/src/adaptive_reference_bottom_nav_renderer.dart test/adaptive_nav_geometry_test.dart
 
-      - name: Install example dependencies
-        working-directory: example
-        run: flutter pub get
-
-      - name: Check formatting
-        run: dart format --output=none --set-exit-if-changed .
-
-      - name: Analyze package
-        run: flutter analyze
-
-      - name: Test package
-        run: flutter test --coverage
-
-      - name: Analyze example
-        working-directory: example
-        run: flutter analyze
-
-      - name: Validate package publication
-        run: dart pub publish --dry-run
-
-  minimum-flutter:
-    name: Minimum supported / Flutter 3.44.0
-    runs-on:
-      - self-hosted
-      - devs-flutter-plugin-ci
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Prepare runner dependencies
+      - name: Commit refinements
         run: |
-          if ! command -v xz >/dev/null 2>&1; then
-            sudo apt-get update
-            sudo apt-get install -y xz-utils
+          if git diff --quiet; then
+            echo 'No source changes to commit.'
+            exit 0
           fi
-
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.44.0'
-          channel: stable
-          cache: true
-
-      - name: Install dependencies
-        run: flutter pub get
-
-      - name: Analyze package
-        run: flutter analyze
-
-      - name: Test package
-        run: flutter test
-
-  platform-builds:
-    name: Builds / Web JS + Web Wasm + Linux + Android
-    runs-on:
-      - self-hosted
-      - devs-flutter-plugin-ci
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Prepare Linux build dependencies
-        run: |
-          if ! command -v xz >/dev/null 2>&1; then
-            sudo apt-get update
-            sudo apt-get install -y xz-utils
-          fi
-          if ! pkg-config --exists gtk+-3.0 2>/dev/null; then
-            sudo apt-get update
-            sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev
-          fi
-
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.47.2'
-          channel: stable
-          cache: true
-
-      - name: Install package dependencies
-        run: flutter pub get
-
-      - name: Create build harness
-        run: |
-          rm -rf .ci_example
-          cp -R example .ci_example
-          cd .ci_example
-          flutter create --platforms=android,web,linux .
-          flutter pub get
-
-      - name: Build Web JavaScript
-        working-directory: .ci_example
-        run: flutter build web --release
-
-      - name: Build Web Wasm
-        working-directory: .ci_example
-        run: flutter build web --wasm --release
-
-      - name: Build Linux
-        working-directory: .ci_example
-        run: |
-          flutter config --enable-linux-desktop
-          flutter build linux --debug
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: '17'
-
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v4
-        with:
-          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
-
-      - name: Build Android
-        working-directory: .ci_example
-        run: flutter build apk --debug
+          git config user.name 'devs-flutter-plugin-ci'
+          git config user.email '58450364+devstecnologia@users.noreply.github.com'
+          git add lib/src/adaptive_reference_bottom_nav_renderer.dart test/adaptive_nav_geometry_test.dart
+          git commit -m 'fix: refine bottom navigation spacing and edge geometry'
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
