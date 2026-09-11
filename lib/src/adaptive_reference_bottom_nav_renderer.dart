@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui' show ImageFilter, Path;
 
 import 'package:material_ui/material_ui.dart';
@@ -8,12 +9,14 @@ import 'adaptive_nav_destination.dart';
 import 'adaptive_nav_motion.dart';
 import 'adaptive_nav_presentation.dart';
 
-/// High-fidelity renderers for the visual families that require geometry or
-/// motion beyond the generic bottom renderer.
+/// Unified built-in bottom navigation renderer.
 ///
-/// Navigation state remains fully controlled by [AdaptiveNavBarConfig].
+/// The renderer keeps the package router-agnostic while separating three
+/// concerns that must not share geometry: destination slot, touch target and
+/// selected visual shape. This prevents wide hover/ripple areas, edge clipping
+/// and inconsistent spacing between visual families.
 class AdaptiveReferenceBottomNavRenderer extends StatelessWidget {
-  /// Creates a reference-inspired bottom renderer.
+  /// Creates the renderer.
   const AdaptiveReferenceBottomNavRenderer({
     required this.config,
     required this.presentation,
@@ -21,39 +24,31 @@ class AdaptiveReferenceBottomNavRenderer extends StatelessWidget {
     super.key,
   });
 
-  /// Current controlled navigation state.
+  /// Controlled navigation state.
   final AdaptiveNavBarConfig config;
 
-  /// Current bottom presentation.
+  /// Active bottom presentation.
   final AdaptiveNavPresentation presentation;
 
   /// Shared motion defaults.
   final AdaptiveNavMotion motion;
 
-  /// Whether [style] is implemented by this renderer.
-  static bool supports(AdaptiveBottomNavStyle style) {
-    return switch (style) {
-      AdaptiveBottomNavStyle.floating ||
-      AdaptiveBottomNavStyle.notch ||
-      AdaptiveBottomNavStyle.persistent ||
-      AdaptiveBottomNavStyle.google ||
-      AdaptiveBottomNavStyle.stylish ||
-      AdaptiveBottomNavStyle.centerRaised => true,
-      _ => false,
-    };
-  }
+  /// Every built-in bottom style is handled here so all styles share the same
+  /// spacing, edge and interaction rules.
+  static bool supports(AdaptiveBottomNavStyle style) => true;
 
-  /// Reserved body footprint for a supported reference style.
+  /// Estimated body footprint used by [AdaptiveNavScaffold].
   static double footprintFor(AdaptiveNavPresentation presentation) {
     final AdaptiveRaisedNavItem? raised = presentation.raisedItem;
     if (raised != null ||
         presentation.bottomStyle == AdaptiveBottomNavStyle.centerRaised) {
       final AdaptiveRaisedNavItem effective =
           raised ?? const AdaptiveRaisedNavItem();
-      return 72 + effective.offset + (effective.showLabel ? 18 : 8);
+      return 74 + effective.offset + (effective.showLabel ? 20 : 8);
     }
 
     return switch (presentation.bottomStyle) {
+      AdaptiveBottomNavStyle.material3 => 0,
       AdaptiveBottomNavStyle.floating =>
         _configOf<AdaptiveFloatingNavStyleConfig>(
               presentation,
@@ -72,28 +67,30 @@ class AdaptiveReferenceBottomNavRenderer extends StatelessWidget {
               presentation,
               const AdaptiveNotchNavStyleConfig(),
             ).bottomMargin,
+      AdaptiveBottomNavStyle.google => _configOf<AdaptiveGoogleNavStyleConfig>(
+        presentation,
+        const AdaptiveGoogleNavStyleConfig(),
+      ).barHeight,
       AdaptiveBottomNavStyle.persistent =>
         _configOf<AdaptivePersistentNavStyleConfig>(
           presentation,
           const AdaptivePersistentNavStyleConfig(),
         ).barHeight,
-      AdaptiveBottomNavStyle.google => _configOf<AdaptiveGoogleNavStyleConfig>(
-        presentation,
-        const AdaptiveGoogleNavStyleConfig(),
-      ).barHeight,
       AdaptiveBottomNavStyle.stylish =>
         _configOf<AdaptiveStylishNavStyleConfig>(
           presentation,
           const AdaptiveStylishNavStyleConfig(),
         ).barHeight,
       AdaptiveBottomNavStyle.centerRaised => 108,
-      _ => 92,
+      AdaptiveBottomNavStyle.pill => 76,
+      AdaptiveBottomNavStyle.bubble => 72,
+      AdaptiveBottomNavStyle.glass => 78,
+      AdaptiveBottomNavStyle.minimal => 66,
     };
   }
 
   @override
   Widget build(BuildContext context) {
-    assert(supports(presentation.bottomStyle));
     _assertCompatibleStyleConfig();
 
     final AdaptiveRaisedNavItem? raisedItem =
@@ -105,14 +102,35 @@ class AdaptiveReferenceBottomNavRenderer extends StatelessWidget {
         ? null
         : _resolveRaisedIndex(raisedItem, config.destinations.length);
 
-    final Widget bar = switch (presentation.bottomStyle) {
-      AdaptiveBottomNavStyle.floating => _FloatingReferenceBar(
+    if (presentation.bottomStyle == AdaptiveBottomNavStyle.material3 &&
+        raisedItem == null) {
+      return _Material3Bar(config: config);
+    }
+
+    Widget bar = switch (presentation.bottomStyle) {
+      AdaptiveBottomNavStyle.material3 => _EqualBar(
         config: config,
         motion: motion,
-        style: _config<AdaptiveFloatingNavStyleConfig>(
-          const AdaptiveFloatingNavStyleConfig(),
-        ),
         hiddenIndex: raisedIndex,
+        height: 72,
+        radius: 0,
+        elevation: 0,
+        surfaceColor: _surface(context),
+        labelMode: _LabelMode.all,
+        indicatorMode: _IndicatorMode.iconPill,
+      ),
+      AdaptiveBottomNavStyle.floating => _floating(context, raisedIndex),
+      AdaptiveBottomNavStyle.pill => _EqualBar(
+        config: config,
+        motion: motion,
+        hiddenIndex: raisedIndex,
+        height: 68,
+        radius: 30,
+        elevation: 1,
+        surfaceColor: _surface(context),
+        labelMode: _LabelMode.all,
+        indicatorMode: _IndicatorMode.iconPill,
+        edgeInset: 6,
       ),
       AdaptiveBottomNavStyle.notch => _MovingNotchBar(
         config: config,
@@ -121,7 +139,28 @@ class AdaptiveReferenceBottomNavRenderer extends StatelessWidget {
           const AdaptiveNotchNavStyleConfig(),
         ),
       ),
-      AdaptiveBottomNavStyle.persistent => _PersistentReferenceBar(
+      AdaptiveBottomNavStyle.bubble => _BubbleBar(
+        config: config,
+        motion: motion,
+        hiddenIndex: raisedIndex,
+      ),
+      AdaptiveBottomNavStyle.glass => _GlassBar(
+        config: config,
+        motion: motion,
+        hiddenIndex: raisedIndex,
+      ),
+      AdaptiveBottomNavStyle.minimal => _EqualBar(
+        config: config,
+        motion: motion,
+        hiddenIndex: raisedIndex,
+        height: 64,
+        radius: 0,
+        elevation: 0,
+        surfaceColor: const Color(0x00000000),
+        labelMode: _LabelMode.all,
+        indicatorMode: _IndicatorMode.underline,
+      ),
+      AdaptiveBottomNavStyle.persistent => _PersistentBar(
         config: config,
         motion: motion,
         style: _config<AdaptivePersistentNavStyleConfig>(
@@ -129,7 +168,7 @@ class AdaptiveReferenceBottomNavRenderer extends StatelessWidget {
         ),
         hiddenIndex: raisedIndex,
       ),
-      AdaptiveBottomNavStyle.google => _GoogleReferenceBar(
+      AdaptiveBottomNavStyle.google => _GoogleBar(
         config: config,
         motion: motion,
         style: _config<AdaptiveGoogleNavStyleConfig>(
@@ -137,7 +176,7 @@ class AdaptiveReferenceBottomNavRenderer extends StatelessWidget {
         ),
         hiddenIndex: raisedIndex,
       ),
-      AdaptiveBottomNavStyle.stylish => _StylishReferenceBar(
+      AdaptiveBottomNavStyle.stylish => _StylishBar(
         config: config,
         motion: motion,
         style: _config<AdaptiveStylishNavStyleConfig>(
@@ -145,48 +184,81 @@ class AdaptiveReferenceBottomNavRenderer extends StatelessWidget {
         ),
         hiddenIndex: raisedIndex,
       ),
-      AdaptiveBottomNavStyle.centerRaised => _CenterRaisedBaseBar(
+      AdaptiveBottomNavStyle.centerRaised => _EqualBar(
         config: config,
         motion: motion,
-        style: _config<AdaptiveCenterRaisedNavStyleConfig>(
+        hiddenIndex: raisedIndex,
+        height: _config<AdaptiveCenterRaisedNavStyleConfig>(
           const AdaptiveCenterRaisedNavStyleConfig(),
-        ),
-        hiddenIndex: raisedIndex!,
+        ).barHeight,
+        radius: _config<AdaptiveCenterRaisedNavStyleConfig>(
+          const AdaptiveCenterRaisedNavStyleConfig(),
+        ).topRadius,
+        elevation: _config<AdaptiveCenterRaisedNavStyleConfig>(
+          const AdaptiveCenterRaisedNavStyleConfig(),
+        ).surfaceElevation,
+        surfaceColor: _surface(context),
+        labelMode: _LabelMode.all,
+        indicatorMode: _IndicatorMode.none,
+        topOnlyRadius: true,
       ),
-      _ => const SizedBox.shrink(),
     };
 
-    final Widget layered =
-        raisedItem != null &&
-            presentation.bottomStyle != AdaptiveBottomNavStyle.notch
-        ? _RaisedDestinationOverlay(
-            config: config,
-            presentation: presentation,
-            raisedItem: raisedItem,
-            raisedIndex: raisedIndex!,
-            child: bar,
-          )
-        : bar;
+    if (raisedItem != null &&
+        presentation.bottomStyle != AdaptiveBottomNavStyle.notch) {
+      bar = _RaisedDestinationOverlay(
+        config: config,
+        raisedItem: raisedItem,
+        raisedIndex: raisedIndex!,
+        child: bar,
+      );
+    }
 
     final double viewportWidth = MediaQuery.sizeOf(context).width;
     final double horizontalMargin = _horizontalMargin();
-    final double effectiveMaxWidth = presentation.maxWidth ?? 560;
-    final double constrainedWidth = (viewportWidth - horizontalMargin * 2)
-        .clamp(0.0, effectiveMaxWidth)
-        .toDouble();
+    final double availableWidth = math.max(
+      0,
+      viewportWidth - horizontalMargin * 2,
+    );
+    final double width = presentation.maxWidth == null
+        ? availableWidth
+        : math.min(availableWidth, presentation.maxWidth!);
 
     return SafeArea(
       minimum: EdgeInsets.only(bottom: _bottomMargin()),
       child: Align(
         alignment: Alignment.bottomCenter,
-        child: SizedBox(width: constrainedWidth, child: layered),
+        child: SizedBox(
+          key: const ValueKey<String>('adaptive-bottom-surface'),
+          width: width,
+          child: bar,
+        ),
       ),
     );
   }
 
-  T _config<T extends AdaptiveBottomNavStyleConfig>(T fallback) {
-    return _configOf<T>(presentation, fallback);
+  Widget _floating(BuildContext context, int? hiddenIndex) {
+    final AdaptiveFloatingNavStyleConfig style =
+        _config<AdaptiveFloatingNavStyleConfig>(
+          const AdaptiveFloatingNavStyleConfig(),
+        );
+    return _EqualBar(
+      config: config,
+      motion: motion,
+      hiddenIndex: hiddenIndex,
+      height: style.height,
+      radius: style.borderRadius,
+      elevation: style.elevation,
+      surfaceColor: _surface(context),
+      labelMode: _LabelMode.all,
+      indicatorMode: _IndicatorMode.iconPill,
+      itemHorizontalPadding: style.itemHorizontalPadding,
+      edgeInset: 4,
+    );
   }
+
+  Color _surface(BuildContext context) =>
+      config.theme.backgroundColor ?? Theme.of(context).colorScheme.surface;
 
   double _horizontalMargin() {
     return switch (presentation.bottomStyle) {
@@ -197,6 +269,8 @@ class AdaptiveReferenceBottomNavRenderer extends StatelessWidget {
       AdaptiveBottomNavStyle.notch => _config<AdaptiveNotchNavStyleConfig>(
         const AdaptiveNotchNavStyleConfig(),
       ).horizontalMargin,
+      AdaptiveBottomNavStyle.pill => 10,
+      AdaptiveBottomNavStyle.glass => 12,
       _ => 0,
     };
   }
@@ -214,8 +288,13 @@ class AdaptiveReferenceBottomNavRenderer extends StatelessWidget {
         _config<AdaptiveCenterRaisedNavStyleConfig>(
           const AdaptiveCenterRaisedNavStyleConfig(),
         ).bottomMargin,
-      _ => 8,
+      AdaptiveBottomNavStyle.pill || AdaptiveBottomNavStyle.glass => 8,
+      _ => 0,
     };
+  }
+
+  T _config<T extends AdaptiveBottomNavStyleConfig>(T fallback) {
+    return _configOf<T>(presentation, fallback);
   }
 
   void _assertCompatibleStyleConfig() {
@@ -235,10 +314,7 @@ class AdaptiveReferenceBottomNavRenderer extends StatelessWidget {
         value is AdaptiveCenterRaisedNavStyleConfig,
       _ => true,
     };
-    assert(
-      valid,
-      'styleConfig does not match ${presentation.bottomStyle.name}.',
-    );
+    assert(valid, 'styleConfig does not match ${presentation.bottomStyle.name}.');
   }
 
   static int _resolveRaisedIndex(AdaptiveRaisedNavItem item, int count) {
@@ -259,123 +335,244 @@ class AdaptiveReferenceBottomNavRenderer extends StatelessWidget {
   }
 }
 
-class _FloatingReferenceBar extends StatelessWidget {
-  const _FloatingReferenceBar({
-    required this.config,
-    required this.motion,
-    required this.style,
-    this.hiddenIndex,
-  });
+class _Material3Bar extends StatelessWidget {
+  const _Material3Bar({required this.config});
 
   final AdaptiveNavBarConfig config;
-  final AdaptiveNavMotion motion;
-  final AdaptiveFloatingNavStyleConfig style;
-  final int? hiddenIndex;
 
   @override
   Widget build(BuildContext context) {
-    final Color surface =
-        config.theme.backgroundColor ?? Theme.of(context).colorScheme.surface;
-    return Material(
-      color: surface,
-      elevation: style.elevation,
-      borderRadius: BorderRadius.circular(style.borderRadius),
-      clipBehavior: Clip.antiAlias,
-      child: SizedBox(
-        height: style.height,
-        child: Row(
-          children: <Widget>[
-            for (final (int index, AdaptiveNavDestination destination)
-                in config.destinations.indexed)
-              Expanded(
-                child: index == hiddenIndex
-                    ? const SizedBox.expand()
-                    : _IconLabelDestination(
-                        destination: destination,
-                        selected: index == config.selectedIndex,
-                        config: config,
-                        motion: motion,
-                        horizontalPadding: style.itemHorizontalPadding,
-                        selectedIndicator: true,
-                        onTap: () => config.onDestinationSelected(index),
-                      ),
-              ),
-          ],
-        ),
-      ),
+    return NavigationBar(
+      selectedIndex: config.selectedIndex,
+      onDestinationSelected: config.onDestinationSelected,
+      destinations: <Widget>[
+        for (final AdaptiveNavDestination destination in config.destinations)
+          NavigationDestination(
+            icon: destination.buildIcon(selected: false),
+            selectedIcon: destination.buildIcon(selected: true),
+            label: destination.label,
+            tooltip: destination.tooltip,
+            enabled: destination.enabled,
+          ),
+      ],
     );
   }
 }
 
-class _PersistentReferenceBar extends StatelessWidget {
-  const _PersistentReferenceBar({
+enum _LabelMode { all, selected, none }
+
+enum _IndicatorMode { none, iconPill, underline, dot }
+
+class _EqualBar extends StatelessWidget {
+  const _EqualBar({
     required this.config,
     required this.motion,
-    required this.style,
+    required this.height,
+    required this.radius,
+    required this.elevation,
+    required this.surfaceColor,
+    required this.labelMode,
+    required this.indicatorMode,
     this.hiddenIndex,
+    this.itemHorizontalPadding = 2,
+    this.edgeInset = 0,
+    this.topOnlyRadius = false,
   });
 
   final AdaptiveNavBarConfig config;
   final AdaptiveNavMotion motion;
-  final AdaptivePersistentNavStyleConfig style;
+  final double height;
+  final double radius;
+  final double elevation;
+  final Color surfaceColor;
+  final _LabelMode labelMode;
+  final _IndicatorMode indicatorMode;
   final int? hiddenIndex;
+  final double itemHorizontalPadding;
+  final double edgeInset;
+  final bool topOnlyRadius;
 
   @override
   Widget build(BuildContext context) {
-    final Color surface =
-        config.theme.backgroundColor ?? Theme.of(context).colorScheme.surface;
+    final BorderRadius borderRadius = topOnlyRadius
+        ? BorderRadius.vertical(top: Radius.circular(radius))
+        : BorderRadius.circular(radius);
     return Material(
-      color: surface,
-      elevation: style.elevation,
+      color: surfaceColor,
+      elevation: elevation,
+      borderRadius: borderRadius,
+      clipBehavior: radius > 0 ? Clip.antiAlias : Clip.none,
       child: SizedBox(
-        height: style.barHeight,
-        child: LayoutBuilder(
-          builder: (BuildContext context, BoxConstraints constraints) {
-            final List<double> widths = _weightedWidths(
-              totalWidth: constraints.maxWidth,
-              count: config.destinations.length,
-              activeIndex: config.selectedIndex,
-              activeWeight: style.activeFlex,
-              inactiveWeight: style.inactiveFlex,
-            );
-            return Row(
-              children: <Widget>[
-                for (final (int index, AdaptiveNavDestination destination)
-                    in config.destinations.indexed)
-                  AnimatedContainer(
-                    key: ValueKey<String>('persistent-slot-$index'),
-                    duration: motion.duration,
-                    curve: motion.curve,
-                    width: widths[index],
+        height: height,
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: edgeInset),
+          child: Row(
+            children: <Widget>[
+              for (final (int index, AdaptiveNavDestination destination)
+                  in config.destinations.indexed)
+                Expanded(
+                  child: Padding(
                     padding: EdgeInsets.symmetric(
-                      horizontal: style.horizontalPadding,
+                      horizontal: itemHorizontalPadding,
                     ),
                     child: index == hiddenIndex
                         ? const SizedBox.expand()
-                        : _ExpandingCapsuleDestination(
+                        : _EqualDestination(
+                            key: ValueKey<String>('adaptive-slot-$index'),
                             destination: destination,
                             selected: index == config.selectedIndex,
                             config: config,
                             motion: motion,
-                            height: style.itemHeight,
-                            horizontalPadding: style.activeHorizontalPadding,
-                            gap: style.gap,
-                            borderRadius: style.borderRadius,
-                            indicatorOpacity: style.indicatorOpacity,
+                            labelMode: labelMode,
+                            indicatorMode: indicatorMode,
                             onTap: () => config.onDestinationSelected(index),
                           ),
                   ),
-              ],
-            );
-          },
+                ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-class _GoogleReferenceBar extends StatelessWidget {
-  const _GoogleReferenceBar({
+class _EqualDestination extends StatelessWidget {
+  const _EqualDestination({
+    required this.destination,
+    required this.selected,
+    required this.config,
+    required this.motion,
+    required this.labelMode,
+    required this.indicatorMode,
+    required this.onTap,
+    super.key,
+  });
+
+  final AdaptiveNavDestination destination;
+  final bool selected;
+  final AdaptiveNavBarConfig config;
+  final AdaptiveNavMotion motion;
+  final _LabelMode labelMode;
+  final _IndicatorMode indicatorMode;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final Color selectedColor =
+        config.theme.selectedColor ?? Theme.of(context).colorScheme.primary;
+    final Color normalColor =
+        config.theme.foregroundColor ??
+        Theme.of(context).colorScheme.onSurfaceVariant;
+    final Color indicator =
+        config.theme.indicatorColor ??
+        Theme.of(context).colorScheme.secondaryContainer;
+    final bool showLabel = switch (labelMode) {
+      _LabelMode.all => true,
+      _LabelMode.selected => selected,
+      _LabelMode.none => false,
+    };
+
+    Widget icon = IconTheme(
+      data: IconThemeData(color: selected ? selectedColor : normalColor),
+      child: destination.buildIcon(selected: selected),
+    );
+
+    if (indicatorMode == _IndicatorMode.iconPill) {
+      icon = AnimatedContainer(
+        key: ValueKey<String>('adaptive-indicator-${destination.label}'),
+        duration: motion.duration,
+        curve: motion.curve,
+        width: selected ? 48 : 40,
+        height: 34,
+        decoration: BoxDecoration(
+          color: selected ? indicator : const Color(0x00000000),
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: Material(
+          color: const Color(0x00000000),
+          borderRadius: BorderRadius.circular(18),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            excludeFromSemantics: true,
+            onTap: destination.enabled ? onTap : null,
+            borderRadius: BorderRadius.circular(18),
+            child: Center(child: icon),
+          ),
+        ),
+      );
+    } else {
+      icon = SizedBox(
+        width: 48,
+        height: 34,
+        child: Center(child: icon),
+      );
+    }
+
+    final Widget indicatorWidget = switch (indicatorMode) {
+      _IndicatorMode.underline => AnimatedContainer(
+        key: ValueKey<String>('adaptive-indicator-${destination.label}'),
+        duration: motion.duration,
+        curve: motion.curve,
+        width: selected ? 20 : 0,
+        height: 3,
+        decoration: BoxDecoration(
+          color: selectedColor,
+          borderRadius: BorderRadius.circular(2),
+        ),
+      ),
+      _IndicatorMode.dot => AnimatedContainer(
+        key: ValueKey<String>('adaptive-indicator-${destination.label}'),
+        duration: motion.duration,
+        curve: motion.curve,
+        width: selected ? 6 : 0,
+        height: selected ? 6 : 0,
+        decoration: BoxDecoration(
+          color: selectedColor,
+          shape: BoxShape.circle,
+        ),
+      ),
+      _ => const SizedBox.shrink(),
+    };
+
+    return _DestinationSemantics(
+      destination: destination,
+      selected: selected,
+      onTap: onTap,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          icon,
+          if (showLabel) ...<Widget>[
+            const SizedBox(height: 2),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 2),
+              child: Text(
+                destination.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: config.theme.labelTextStyle?.copyWith(
+                  color: selected ? selectedColor : normalColor,
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                ),
+              ),
+            ),
+          ],
+          if (indicatorMode == _IndicatorMode.underline ||
+              indicatorMode == _IndicatorMode.dot) ...<Widget>[
+            const SizedBox(height: 3),
+            indicatorWidget,
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _GoogleBar extends StatelessWidget {
+  const _GoogleBar({
     required this.config,
     required this.motion,
     required this.style,
@@ -389,44 +586,49 @@ class _GoogleReferenceBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color surface =
-        config.theme.backgroundColor ?? Theme.of(context).colorScheme.surface;
     return Material(
-      color: surface,
+      color: config.theme.backgroundColor ?? Theme.of(context).colorScheme.surface,
       elevation: style.elevation,
       child: SizedBox(
         height: style.barHeight,
         child: Padding(
           padding: EdgeInsets.symmetric(
-            horizontal: style.horizontalPadding,
+            horizontal: math.min(style.horizontalPadding, 8),
             vertical: style.verticalPadding,
           ),
           child: LayoutBuilder(
             builder: (BuildContext context, BoxConstraints constraints) {
-              final List<double> widths = _weightedWidths(
-                totalWidth: constraints.maxWidth,
-                count: config.destinations.length,
-                activeIndex: config.selectedIndex,
-                activeWeight: style.activeFlex,
-                inactiveWeight: style.inactiveFlex,
-              );
+              final List<double> widths = hiddenIndex == null
+                  ? _weightedWidths(
+                      constraints.maxWidth,
+                      config.destinations.length,
+                      config.selectedIndex,
+                      style.activeFlex,
+                      style.inactiveFlex,
+                    )
+                  : _equalWidths(
+                      constraints.maxWidth,
+                      config.destinations.length,
+                    );
               return Row(
                 children: <Widget>[
                   for (final (int index, AdaptiveNavDestination destination)
                       in config.destinations.indexed)
-                    AnimatedContainer(
+                    SizedBox(
                       key: ValueKey<String>('google-slot-$index'),
-                      duration: motion.duration,
-                      curve: motion.curve,
                       width: widths[index],
                       child: index == hiddenIndex
                           ? const SizedBox.expand()
-                          : _GoogleDestination(
+                          : _CapsuleDestination(
                               destination: destination,
                               selected: index == config.selectedIndex,
                               config: config,
                               motion: motion,
-                              style: style,
+                              activeHeight: style.itemHeight,
+                              activePadding: style.activeContentPadding,
+                              gap: style.gap,
+                              borderRadius: style.borderRadius,
+                              showOnlySelectedLabel: true,
                               onTap: () => config.onDestinationSelected(index),
                             ),
                     ),
@@ -440,89 +642,247 @@ class _GoogleReferenceBar extends StatelessWidget {
   }
 }
 
-class _GoogleDestination extends StatelessWidget {
-  const _GoogleDestination({
-    required this.destination,
-    required this.selected,
+class _PersistentBar extends StatelessWidget {
+  const _PersistentBar({
     required this.config,
     required this.motion,
     required this.style,
-    required this.onTap,
+    this.hiddenIndex,
   });
 
-  final AdaptiveNavDestination destination;
-  final bool selected;
   final AdaptiveNavBarConfig config;
   final AdaptiveNavMotion motion;
-  final AdaptiveGoogleNavStyleConfig style;
-  final VoidCallback onTap;
+  final AdaptivePersistentNavStyleConfig style;
+  final int? hiddenIndex;
 
   @override
   Widget build(BuildContext context) {
-    final Color foreground = selected
-        ? config.theme.selectedColor ?? Theme.of(context).colorScheme.primary
-        : config.theme.foregroundColor ??
-              Theme.of(context).colorScheme.onSurfaceVariant;
-    final Color indicator =
-        config.theme.indicatorColor ??
-        Theme.of(context).colorScheme.secondaryContainer;
-
-    return _DestinationSemantics(
-      destination: destination,
-      selected: selected,
-      onTap: onTap,
-      borderRadius: style.borderRadius,
-      child: Center(
-        child: AnimatedContainer(
-          duration: motion.duration,
-          curve: motion.curve,
-          height: style.itemHeight,
-          constraints: const BoxConstraints(minWidth: 48),
-          padding: EdgeInsets.symmetric(
-            horizontal: selected
-                ? style.activeContentPadding
-                : style.inactiveContentPadding,
-          ),
-          decoration: BoxDecoration(
-            color: selected ? indicator : const Color(0x00000000),
-            borderRadius: BorderRadius.circular(style.borderRadius),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              IconTheme(
-                data: IconThemeData(color: foreground),
-                child: destination.buildIcon(selected: selected),
-              ),
-              if (selected)
-                Flexible(
-                  child: Padding(
-                    padding: EdgeInsetsDirectional.only(start: style.gap),
-                    child: Text(
-                      destination.label,
-                      key: ValueKey<String>(
-                        'google-selected-label-${destination.label}',
+    return Material(
+      color: config.theme.backgroundColor ?? Theme.of(context).colorScheme.surface,
+      elevation: style.elevation,
+      child: SizedBox(
+        height: style.barHeight,
+        child: LayoutBuilder(
+          builder: (BuildContext context, BoxConstraints constraints) {
+            final List<double> widths = hiddenIndex == null
+                ? _weightedWidths(
+                    constraints.maxWidth,
+                    config.destinations.length,
+                    config.selectedIndex,
+                    style.activeFlex,
+                    style.inactiveFlex,
+                  )
+                : _equalWidths(
+                    constraints.maxWidth,
+                    config.destinations.length,
+                  );
+            return Row(
+              children: <Widget>[
+                for (final (int index, AdaptiveNavDestination destination)
+                    in config.destinations.indexed)
+                  SizedBox(
+                    key: ValueKey<String>('persistent-slot-$index'),
+                    width: widths[index],
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: math.min(style.horizontalPadding, 4),
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: config.theme.labelTextStyle?.copyWith(
-                        color: foreground,
-                        fontWeight: FontWeight.w600,
-                      ),
+                      child: index == hiddenIndex
+                          ? const SizedBox.expand()
+                          : _CapsuleDestination(
+                              destination: destination,
+                              selected: index == config.selectedIndex,
+                              config: config,
+                              motion: motion,
+                              activeHeight: style.itemHeight,
+                              activePadding: style.activeHorizontalPadding,
+                              gap: style.gap,
+                              borderRadius: style.borderRadius,
+                              indicatorOpacity: style.indicatorOpacity,
+                              showOnlySelectedLabel: true,
+                              onTap: () => config.onDestinationSelected(index),
+                            ),
                     ),
                   ),
-                ),
-            ],
-          ),
+              ],
+            );
+          },
         ),
       ),
     );
   }
 }
 
-class _StylishReferenceBar extends StatelessWidget {
-  const _StylishReferenceBar({
+class _BubbleBar extends StatelessWidget {
+  const _BubbleBar({
+    required this.config,
+    required this.motion,
+    this.hiddenIndex,
+  });
+
+  final AdaptiveNavBarConfig config;
+  final AdaptiveNavMotion motion;
+  final int? hiddenIndex;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: config.theme.backgroundColor ?? Theme.of(context).colorScheme.surface,
+      elevation: 1,
+      child: SizedBox(
+        height: 70,
+        child: LayoutBuilder(
+          builder: (BuildContext context, BoxConstraints constraints) {
+            final List<double> widths = hiddenIndex == null
+                ? _weightedWidths(
+                    constraints.maxWidth,
+                    config.destinations.length,
+                    config.selectedIndex,
+                    1.45,
+                    1,
+                  )
+                : _equalWidths(
+                    constraints.maxWidth,
+                    config.destinations.length,
+                  );
+            return Row(
+              children: <Widget>[
+                for (final (int index, AdaptiveNavDestination destination)
+                    in config.destinations.indexed)
+                  SizedBox(
+                    width: widths[index],
+                    child: index == hiddenIndex
+                        ? const SizedBox.expand()
+                        : _CapsuleDestination(
+                            destination: destination,
+                            selected: index == config.selectedIndex,
+                            config: config,
+                            motion: motion,
+                            activeHeight: 44,
+                            activePadding: 10,
+                            gap: 6,
+                            borderRadius: 24,
+                            indicatorOpacity: 0.72,
+                            showOnlySelectedLabel: true,
+                            onTap: () => config.onDestinationSelected(index),
+                          ),
+                  ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _CapsuleDestination extends StatelessWidget {
+  const _CapsuleDestination({
+    required this.destination,
+    required this.selected,
+    required this.config,
+    required this.motion,
+    required this.activeHeight,
+    required this.activePadding,
+    required this.gap,
+    required this.borderRadius,
+    required this.showOnlySelectedLabel,
+    required this.onTap,
+    this.indicatorOpacity = 1,
+  });
+
+  final AdaptiveNavDestination destination;
+  final bool selected;
+  final AdaptiveNavBarConfig config;
+  final AdaptiveNavMotion motion;
+  final double activeHeight;
+  final double activePadding;
+  final double gap;
+  final double borderRadius;
+  final double indicatorOpacity;
+  final bool showOnlySelectedLabel;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final Color selectedColor =
+        config.theme.selectedColor ?? Theme.of(context).colorScheme.primary;
+    final Color normalColor =
+        config.theme.foregroundColor ??
+        Theme.of(context).colorScheme.onSurfaceVariant;
+    final Color indicator =
+        (config.theme.indicatorColor ??
+                Theme.of(context).colorScheme.secondaryContainer)
+            .withValues(alpha: indicatorOpacity);
+
+    final Widget icon = IconTheme(
+      data: IconThemeData(color: selected ? selectedColor : normalColor),
+      child: destination.buildIcon(selected: selected),
+    );
+
+    final Widget visual = selected
+        ? AnimatedContainer(
+            duration: motion.duration,
+            curve: motion.curve,
+            height: activeHeight,
+            constraints: const BoxConstraints(minWidth: 48, maxWidth: 132),
+            padding: EdgeInsets.symmetric(horizontal: activePadding),
+            decoration: BoxDecoration(
+              color: indicator,
+              borderRadius: BorderRadius.circular(borderRadius),
+            ),
+            child: Material(
+              color: const Color(0x00000000),
+              borderRadius: BorderRadius.circular(borderRadius),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                excludeFromSemantics: true,
+                onTap: destination.enabled ? onTap : null,
+                borderRadius: BorderRadius.circular(borderRadius),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 2),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      icon,
+                      Flexible(
+                        child: Padding(
+                          padding: EdgeInsetsDirectional.only(start: gap),
+                          child: Text(
+                            destination.label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: config.theme.labelTextStyle?.copyWith(
+                              color: selectedColor,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          )
+        : SizedBox(
+            width: 48,
+            height: 48,
+            child: Center(child: icon),
+          );
+
+    return _DestinationSemantics(
+      destination: destination,
+      selected: selected,
+      onTap: onTap,
+      child: Center(child: visual),
+    );
+  }
+}
+
+class _StylishBar extends StatelessWidget {
+  const _StylishBar({
     required this.config,
     required this.motion,
     required this.style,
@@ -536,63 +896,79 @@ class _StylishReferenceBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (style.variant == AdaptiveStylishVariant.bubble) {
-      return _StylishBubbleBar(
-        config: config,
-        motion: motion,
-        style: style,
-        hiddenIndex: hiddenIndex,
-      );
-    }
-
-    final Color surface =
-        config.theme.backgroundColor ?? Theme.of(context).colorScheme.surface;
-    Widget content = SizedBox(
-      height: style.barHeight,
-      child: Row(
-        children: <Widget>[
-          for (final (int index, AdaptiveNavDestination destination)
-              in config.destinations.indexed)
-            Expanded(
-              child: index == hiddenIndex
-                  ? const SizedBox.expand()
-                  : _StylishDestination(
-                      destination: destination,
-                      selected: index == config.selectedIndex,
-                      config: config,
-                      motion: motion,
-                      style: style,
-                      onTap: () => config.onDestinationSelected(index),
-                    ),
-            ),
-        ],
-      ),
-    );
-
     if (style.variant == AdaptiveStylishVariant.blur) {
-      final BorderRadius radius = BorderRadius.circular(24);
-      content = ClipRRect(
-        borderRadius: radius,
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(22),
         child: BackdropFilter(
           filter: ImageFilter.blur(
             sigmaX: style.blurSigma,
             sigmaY: style.blurSigma,
           ),
-          child: Material(
-            color: surface.withValues(alpha: style.blurOpacity),
-            elevation: 0,
-            child: content,
+          child: _StylishSurface(
+            config: config,
+            motion: motion,
+            style: style,
+            hiddenIndex: hiddenIndex,
+            transparent: true,
           ),
         ),
       );
-    } else {
-      content = Material(
-        color: surface,
-        elevation: style.elevation,
-        child: content,
-      );
     }
-    return content;
+    return _StylishSurface(
+      config: config,
+      motion: motion,
+      style: style,
+      hiddenIndex: hiddenIndex,
+    );
+  }
+}
+
+class _StylishSurface extends StatelessWidget {
+  const _StylishSurface({
+    required this.config,
+    required this.motion,
+    required this.style,
+    required this.hiddenIndex,
+    this.transparent = false,
+  });
+
+  final AdaptiveNavBarConfig config;
+  final AdaptiveNavMotion motion;
+  final AdaptiveStylishNavStyleConfig style;
+  final int? hiddenIndex;
+  final bool transparent;
+
+  @override
+  Widget build(BuildContext context) {
+    final Color surface =
+        config.theme.backgroundColor ?? Theme.of(context).colorScheme.surface;
+    return Material(
+      color: transparent
+          ? surface.withValues(alpha: style.blurOpacity)
+          : surface,
+      elevation: transparent ? 0 : style.elevation,
+      child: SizedBox(
+        height: style.barHeight,
+        child: Row(
+          children: <Widget>[
+            for (final (int index, AdaptiveNavDestination destination)
+                in config.destinations.indexed)
+              Expanded(
+                child: index == hiddenIndex
+                    ? const SizedBox.expand()
+                    : _StylishDestination(
+                        destination: destination,
+                        selected: index == config.selectedIndex,
+                        config: config,
+                        motion: motion,
+                        style: style,
+                        onTap: () => config.onDestinationSelected(index),
+                      ),
+              ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -615,66 +991,99 @@ class _StylishDestination extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color foreground = selected
-        ? config.theme.selectedColor ?? Theme.of(context).colorScheme.primary
-        : config.theme.foregroundColor ??
-              Theme.of(context).colorScheme.onSurfaceVariant;
-    final bool animated =
-        style.variant == AdaptiveStylishVariant.animated ||
-        style.variant == AdaptiveStylishVariant.blur;
+    if (style.variant == AdaptiveStylishVariant.bubble) {
+      return _CapsuleDestination(
+        destination: destination,
+        selected: selected,
+        config: config,
+        motion: motion,
+        activeHeight: 42,
+        activePadding: 10,
+        gap: 6,
+        borderRadius: 22,
+        indicatorOpacity: 0.72,
+        showOnlySelectedLabel: true,
+        onTap: onTap,
+      );
+    }
+
+    final Color selectedColor =
+        config.theme.selectedColor ?? Theme.of(context).colorScheme.primary;
+    final Color normalColor =
+        config.theme.foregroundColor ??
+        Theme.of(context).colorScheme.onSurfaceVariant;
+    final double lift =
+        style.variant == AdaptiveStylishVariant.animated && selected
+        ? -style.selectedLift
+        : 0;
+
+    final Widget marker = style.variant == AdaptiveStylishVariant.dot
+        ? AnimatedContainer(
+            key: ValueKey<String>('stylish-indicator-${destination.label}'),
+            duration: motion.duration,
+            curve: motion.curve,
+            width: selected
+                ? style.dotStyle == AdaptiveStylishDotStyle.circle
+                      ? style.dotSize
+                      : style.tileWidth
+                : 0,
+            height: selected
+                ? style.dotStyle == AdaptiveStylishDotStyle.circle
+                      ? style.dotSize
+                      : style.indicatorHeight
+                : 0,
+            decoration: BoxDecoration(
+              color: selectedColor,
+              borderRadius: BorderRadius.circular(style.dotSize),
+            ),
+          )
+        : const SizedBox.shrink();
 
     return _DestinationSemantics(
       destination: destination,
       selected: selected,
       onTap: onTap,
-      borderRadius: 24,
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
           AnimatedSlide(
-            offset: selected && animated
-                ? Offset(0, -style.selectedLift)
-                : Offset.zero,
             duration: motion.duration,
-            curve: Curves.fastOutSlowIn,
+            curve: motion.curve,
+            offset: Offset(0, lift),
             child: AnimatedScale(
-              scale: selected && animated ? style.selectedScale : 1,
               duration: motion.duration,
-              curve: Curves.fastOutSlowIn,
-              child: IconTheme(
-                data: IconThemeData(color: foreground, size: style.iconSize),
-                child: destination.buildIcon(selected: selected),
+              curve: motion.curve,
+              scale: selected ? style.selectedScale : 1,
+              child: SizedBox(
+                width: 48,
+                height: 30,
+                child: Center(
+                  child: IconTheme(
+                    data: IconThemeData(
+                      color: selected ? selectedColor : normalColor,
+                      size: style.iconSize,
+                    ),
+                    child: destination.buildIcon(selected: selected),
+                  ),
+                ),
               ),
             ),
           ),
-          const SizedBox(height: 3),
+          const SizedBox(height: 2),
           Text(
             destination.label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
             style: config.theme.labelTextStyle?.copyWith(
-              color: foreground,
+              color: selected ? selectedColor : normalColor,
               fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
             ),
           ),
           if (style.variant == AdaptiveStylishVariant.dot) ...<Widget>[
-            const SizedBox(height: 4),
-            AnimatedContainer(
-              key: ValueKey<String>('stylish-indicator-${destination.label}'),
-              duration: motion.duration,
-              curve: Curves.fastOutSlowIn,
-              width: selected
-                  ? style.dotStyle == AdaptiveStylishDotStyle.circle
-                        ? style.dotSize
-                        : style.tileWidth
-                  : 0,
-              height: selected ? style.indicatorHeight : 0,
-              decoration: BoxDecoration(
-                color: config.theme.selectedColor,
-                borderRadius: BorderRadius.circular(style.dotSize),
-              ),
-            ),
+            const SizedBox(height: 3),
+            marker,
           ],
         ],
       ),
@@ -682,221 +1091,39 @@ class _StylishDestination extends StatelessWidget {
   }
 }
 
-class _StylishBubbleBar extends StatelessWidget {
-  const _StylishBubbleBar({
+class _GlassBar extends StatelessWidget {
+  const _GlassBar({
     required this.config,
     required this.motion,
-    required this.style,
     this.hiddenIndex,
   });
 
   final AdaptiveNavBarConfig config;
   final AdaptiveNavMotion motion;
-  final AdaptiveStylishNavStyleConfig style;
   final int? hiddenIndex;
 
   @override
   Widget build(BuildContext context) {
+    final BorderRadius radius = BorderRadius.circular(28);
     final Color surface =
         config.theme.backgroundColor ?? Theme.of(context).colorScheme.surface;
-    return Material(
-      color: surface,
-      elevation: style.elevation,
-      child: SizedBox(
-        height: style.barHeight,
-        child: LayoutBuilder(
-          builder: (BuildContext context, BoxConstraints constraints) {
-            final List<double> widths = _weightedWidths(
-              totalWidth: constraints.maxWidth,
-              count: config.destinations.length,
-              activeIndex: config.selectedIndex,
-              activeWeight: style.bubbleActiveFlex,
-              inactiveWeight: 1,
-            );
-            return Row(
-              children: <Widget>[
-                for (final (int index, AdaptiveNavDestination destination)
-                    in config.destinations.indexed)
-                  AnimatedContainer(
-                    duration: motion.duration,
-                    curve: motion.curve,
-                    width: widths[index],
-                    padding: const EdgeInsets.symmetric(horizontal: 3),
-                    child: index == hiddenIndex
-                        ? const SizedBox.expand()
-                        : _ExpandingCapsuleDestination(
-                            destination: destination,
-                            selected: index == config.selectedIndex,
-                            config: config,
-                            motion: motion,
-                            height: 44,
-                            horizontalPadding: 12,
-                            gap: 7,
-                            borderRadius: 30,
-                            indicatorOpacity: 0.72,
-                            onTap: () => config.onDestinationSelected(index),
-                          ),
-                  ),
-              ],
-            );
-          },
-        ),
-      ),
-    );
-  }
-}
-
-class _CenterRaisedBaseBar extends StatelessWidget {
-  const _CenterRaisedBaseBar({
-    required this.config,
-    required this.motion,
-    required this.style,
-    required this.hiddenIndex,
-  });
-
-  final AdaptiveNavBarConfig config;
-  final AdaptiveNavMotion motion;
-  final AdaptiveCenterRaisedNavStyleConfig style;
-  final int hiddenIndex;
-
-  @override
-  Widget build(BuildContext context) {
-    final Color surface =
-        config.theme.backgroundColor ?? Theme.of(context).colorScheme.surface;
-    return Material(
-      color: surface,
-      elevation: style.surfaceElevation,
-      borderRadius: BorderRadius.vertical(
-        top: Radius.circular(style.topRadius),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: SizedBox(
-        height: style.barHeight,
-        child: Row(
-          children: <Widget>[
-            for (final (int index, AdaptiveNavDestination destination)
-                in config.destinations.indexed)
-              Expanded(
-                child: index == hiddenIndex
-                    ? const SizedBox.expand()
-                    : _IconLabelDestination(
-                        destination: destination,
-                        selected: index == config.selectedIndex,
-                        config: config,
-                        motion: motion,
-                        horizontalPadding: 4,
-                        selectedIndicator: false,
-                        onTap: () => config.onDestinationSelected(index),
-                      ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _RaisedDestinationOverlay extends StatelessWidget {
-  const _RaisedDestinationOverlay({
-    required this.config,
-    required this.presentation,
-    required this.raisedItem,
-    required this.raisedIndex,
-    required this.child,
-  });
-
-  final AdaptiveNavBarConfig config;
-  final AdaptiveNavPresentation presentation;
-  final AdaptiveRaisedNavItem raisedItem;
-  final int raisedIndex;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final AdaptiveNavDestination destination = config.destinations[raisedIndex];
-    final bool selected = config.selectedIndex == raisedIndex;
-    final Color background =
-        raisedItem.backgroundColor ??
-        Theme.of(context).colorScheme.inverseSurface;
-    final Color foreground =
-        raisedItem.foregroundColor ??
-        Theme.of(context).colorScheme.onInverseSurface;
-
-    return LayoutBuilder(
-      builder: (BuildContext context, BoxConstraints constraints) {
-        final double center = _slotCenter(
-          width: constraints.maxWidth,
-          presentation: presentation,
+    return ClipRRect(
+      borderRadius: radius,
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+        child: _EqualBar(
           config: config,
-          index: raisedIndex,
-        );
-        final double start = center - raisedItem.size / 2;
-
-        return Stack(
-          clipBehavior: Clip.none,
-          children: <Widget>[
-            child,
-            PositionedDirectional(
-              start: start,
-              top: -raisedItem.offset,
-              width: raisedItem.size,
-              child: Semantics(
-                button: true,
-                selected: selected,
-                enabled: destination.enabled,
-                label: destination.semanticLabel ?? destination.label,
-                child: Tooltip(
-                  message: destination.tooltip ?? destination.label,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      Material(
-                        key: const ValueKey<String>('adaptive-raised-button'),
-                        color: background,
-                        elevation: raisedItem.elevation,
-                        shape: const CircleBorder(),
-                        clipBehavior: Clip.antiAlias,
-                        child: InkWell(
-                          onTap: destination.enabled
-                              ? () => config.onDestinationSelected(raisedIndex)
-                              : null,
-                          child: SizedBox.square(
-                            dimension: raisedItem.size,
-                            child: Center(
-                              child: IconTheme(
-                                data: IconThemeData(color: foreground),
-                                child: destination.buildIcon(
-                                  selected: selected,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      if (raisedItem.showLabel) ...<Widget>[
-                        const SizedBox(height: 3),
-                        Text(
-                          destination.label,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: config.theme.labelTextStyle?.copyWith(
-                            color: selected
-                                ? config.theme.selectedColor
-                                : config.theme.foregroundColor,
-                            fontWeight: selected
-                                ? FontWeight.w600
-                                : FontWeight.w400,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
-        );
-      },
+          motion: motion,
+          hiddenIndex: hiddenIndex,
+          height: 66,
+          radius: 28,
+          elevation: 0,
+          surfaceColor: surface.withValues(alpha: 0.76),
+          labelMode: _LabelMode.all,
+          indicatorMode: _IndicatorMode.iconPill,
+          edgeInset: 4,
+        ),
+      ),
     );
   }
 }
@@ -940,22 +1167,12 @@ class _MovingNotchBarState extends State<_MovingNotchBar>
       _controller.duration = widget.motion.duration;
     }
     if (oldWidget.config.selectedIndex != widget.config.selectedIndex) {
-      final bool disableAnimations =
-          MediaQuery.maybeOf(context)?.disableAnimations ?? false;
-      if (disableAnimations) {
-        _position = AlwaysStoppedAnimation<double>(
-          widget.config.selectedIndex.toDouble(),
-        );
-        return;
-      }
-      final double start = _position.value;
-      _position =
-          Tween<double>(
-            begin: start,
-            end: widget.config.selectedIndex.toDouble(),
-          ).animate(
-            CurvedAnimation(parent: _controller, curve: widget.motion.curve),
-          );
+      _position = Tween<double>(
+        begin: _position.value,
+        end: widget.config.selectedIndex.toDouble(),
+      ).animate(
+        CurvedAnimation(parent: _controller, curve: widget.motion.curve),
+      );
       _controller.forward(from: 0);
     }
   }
@@ -968,44 +1185,42 @@ class _MovingNotchBarState extends State<_MovingNotchBar>
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (BuildContext context, BoxConstraints constraints) {
-        return AnimatedBuilder(
-          animation: _controller,
-          builder: (BuildContext context, Widget? child) {
-            final double position = _position.value;
-            final int selectedIndex = widget.config.selectedIndex;
-            final AdaptiveNavDestination selected =
-                widget.config.destinations[selectedIndex];
-            final double logicalCenter = _equalSlotCenter(
-              constraints.maxWidth,
-              widget.config.destinations.length,
-              position,
-            );
-            final double center =
-                Directionality.of(context) == TextDirection.rtl
-                ? constraints.maxWidth - logicalCenter
-                : logicalCenter;
-            final double buttonStart = center - widget.style.buttonSize / 2;
-
-            return SizedBox(
-              height: widget.style.barHeight,
-              child: Stack(
+    final Color surface =
+        widget.config.theme.backgroundColor ??
+        Theme.of(context).colorScheme.surface;
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (BuildContext context, Widget? child) {
+        final double position = _position.value;
+        final int selectedIndex = widget.config.selectedIndex;
+        final AdaptiveNavDestination selected =
+            widget.config.destinations[selectedIndex];
+        return SizedBox(
+          height: widget.style.barHeight,
+          child: LayoutBuilder(
+            builder: (BuildContext context, BoxConstraints constraints) {
+              final double slotWidth =
+                  constraints.maxWidth / widget.config.destinations.length;
+              final double logicalCenter =
+                  slotWidth * position + slotWidth / 2;
+              final double center = Directionality.of(context) == TextDirection.rtl
+                  ? constraints.maxWidth - logicalCenter
+                  : logicalCenter;
+              return Stack(
                 clipBehavior: Clip.none,
                 children: <Widget>[
                   Positioned.fill(
                     top: widget.style.surfaceTop,
                     child: ClipPath(
-                      clipper: _NotchBarClipper(
-                        position: position,
-                        itemCount: widget.config.destinations.length,
-                        rtl: Directionality.of(context) == TextDirection.rtl,
+                      clipper: _NotchClipper(
+                        center: center,
                         radius: widget.style.notchRadius,
                         depthFactor: widget.style.notchDepthFactor,
                         shoulderFactor: widget.style.notchShoulderFactor,
                       ),
                       child: Material(
-                        color: widget.config.theme.backgroundColor,
+                        color: surface,
+                        elevation: 1,
                         child: const SizedBox.expand(),
                       ),
                     ),
@@ -1014,10 +1229,7 @@ class _MovingNotchBarState extends State<_MovingNotchBar>
                     top: widget.style.contentTop,
                     child: Row(
                       children: <Widget>[
-                        for (final (
-                              int index,
-                              AdaptiveNavDestination destination,
-                            )
+                        for (final (int index, AdaptiveNavDestination destination)
                             in widget.config.destinations.indexed)
                           Expanded(
                             child: index == selectedIndex
@@ -1032,69 +1244,27 @@ class _MovingNotchBarState extends State<_MovingNotchBar>
                     ),
                   ),
                   Positioned(
-                    left: buttonStart,
+                    key: const ValueKey<String>('adaptive-notch-button'),
+                    left: center - widget.style.buttonSize / 2,
                     top: 0,
                     width: widget.style.buttonSize,
-                    child: Semantics(
-                      button: true,
+                    child: _RaisedVisual(
+                      destination: selected,
                       selected: true,
-                      enabled: selected.enabled,
-                      label: selected.semanticLabel ?? selected.label,
-                      child: Tooltip(
-                        message: selected.tooltip ?? selected.label,
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: <Widget>[
-                            Material(
-                              key: const ValueKey<String>(
-                                'adaptive-notch-button',
-                              ),
-                              color: widget.config.theme.indicatorColor,
-                              elevation: widget.style.buttonElevation,
-                              shape: const CircleBorder(),
-                              clipBehavior: Clip.antiAlias,
-                              child: InkWell(
-                                onTap: selected.enabled
-                                    ? () => widget.config.onDestinationSelected(
-                                        selectedIndex,
-                                      )
-                                    : null,
-                                child: SizedBox.square(
-                                  dimension: widget.style.buttonSize,
-                                  child: Center(
-                                    child: IconTheme(
-                                      data: IconThemeData(
-                                        color:
-                                            widget.config.theme.selectedColor,
-                                      ),
-                                      child: selected.buildIcon(selected: true),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            if (widget.style.showLabel) ...<Widget>[
-                              const SizedBox(height: 4),
-                              Text(
-                                selected.label,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: widget.config.theme.labelTextStyle
-                                    ?.copyWith(
-                                      color: widget.config.theme.selectedColor,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
+                      config: widget.config,
+                      size: widget.style.buttonSize,
+                      elevation: widget.style.buttonElevation,
+                      backgroundColor: widget.config.theme.indicatorColor,
+                      foregroundColor: widget.config.theme.selectedColor,
+                      showLabel: widget.style.showLabel,
+                      onTap: () =>
+                          widget.config.onDestinationSelected(selectedIndex),
                     ),
                   ),
                 ],
-              ),
-            );
-          },
+              );
+            },
+          ),
         );
       },
     );
@@ -1114,27 +1284,34 @@ class _NotchInactiveDestination extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final Color color =
+        config.theme.foregroundColor ??
+        Theme.of(context).colorScheme.onSurfaceVariant;
     return _DestinationSemantics(
       destination: destination,
       selected: false,
       onTap: () => config.onDestinationSelected(index),
-      borderRadius: 20,
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          IconTheme(
-            data: IconThemeData(color: config.theme.foregroundColor),
-            child: destination.buildIcon(selected: false),
+          SizedBox(
+            width: 48,
+            height: 30,
+            child: Center(
+              child: IconTheme(
+                data: IconThemeData(color: color),
+                child: destination.buildIcon(selected: false),
+              ),
+            ),
           ),
-          const SizedBox(height: 3),
+          const SizedBox(height: 2),
           Text(
             destination.label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: config.theme.labelTextStyle?.copyWith(
-              color: config.theme.foregroundColor,
-            ),
+            textAlign: TextAlign.center,
+            style: config.theme.labelTextStyle?.copyWith(color: color),
           ),
         ],
       ),
@@ -1142,44 +1319,41 @@ class _NotchInactiveDestination extends StatelessWidget {
   }
 }
 
-class _NotchBarClipper extends CustomClipper<Path> {
-  const _NotchBarClipper({
-    required this.position,
-    required this.itemCount,
-    required this.rtl,
+class _NotchClipper extends CustomClipper<Path> {
+  const _NotchClipper({
+    required this.center,
     required this.radius,
     required this.depthFactor,
     required this.shoulderFactor,
   });
 
-  final double position;
-  final int itemCount;
-  final bool rtl;
+  final double center;
   final double radius;
   final double depthFactor;
   final double shoulderFactor;
 
   @override
   Path getClip(Size size) {
-    final double itemWidth = size.width / itemCount;
-    final double logicalCenter = itemWidth * position + itemWidth / 2;
-    final double center = rtl ? size.width - logicalCenter : logicalCenter;
+    final double safeCenter = center.clamp(
+      radius * shoulderFactor,
+      size.width - radius * shoulderFactor,
+    );
     final Path path = Path()..moveTo(0, 0);
-    path.lineTo(center - radius * shoulderFactor, 0);
+    path.lineTo(safeCenter - radius * shoulderFactor, 0);
     path.cubicTo(
-      center - radius,
+      safeCenter - radius,
       0,
-      center - radius,
+      safeCenter - radius,
       radius * depthFactor,
-      center,
+      safeCenter,
       radius * depthFactor,
     );
     path.cubicTo(
-      center + radius,
+      safeCenter + radius,
       radius * depthFactor,
-      center + radius,
+      safeCenter + radius,
       0,
-      center + radius * shoulderFactor,
+      safeCenter + radius * shoulderFactor,
       0,
     );
     path.lineTo(size.width, 0);
@@ -1190,173 +1364,139 @@ class _NotchBarClipper extends CustomClipper<Path> {
   }
 
   @override
-  bool shouldReclip(covariant _NotchBarClipper oldClipper) {
-    return oldClipper.position != position ||
-        oldClipper.itemCount != itemCount ||
-        oldClipper.rtl != rtl ||
+  bool shouldReclip(covariant _NotchClipper oldClipper) {
+    return oldClipper.center != center ||
         oldClipper.radius != radius ||
         oldClipper.depthFactor != depthFactor ||
         oldClipper.shoulderFactor != shoulderFactor;
   }
 }
 
-class _ExpandingCapsuleDestination extends StatelessWidget {
-  const _ExpandingCapsuleDestination({
-    required this.destination,
-    required this.selected,
+class _RaisedDestinationOverlay extends StatelessWidget {
+  const _RaisedDestinationOverlay({
     required this.config,
-    required this.motion,
-    required this.height,
-    required this.horizontalPadding,
-    required this.gap,
-    required this.borderRadius,
-    required this.indicatorOpacity,
-    required this.onTap,
+    required this.raisedItem,
+    required this.raisedIndex,
+    required this.child,
   });
 
-  final AdaptiveNavDestination destination;
-  final bool selected;
   final AdaptiveNavBarConfig config;
-  final AdaptiveNavMotion motion;
-  final double height;
-  final double horizontalPadding;
-  final double gap;
-  final double borderRadius;
-  final double indicatorOpacity;
-  final VoidCallback onTap;
+  final AdaptiveRaisedNavItem raisedItem;
+  final int raisedIndex;
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    final Color foreground = selected
-        ? config.theme.selectedColor ?? Theme.of(context).colorScheme.primary
-        : config.theme.foregroundColor ??
-              Theme.of(context).colorScheme.onSurfaceVariant;
-    final Color indicator =
-        config.theme.indicatorColor ??
-        Theme.of(context).colorScheme.secondaryContainer;
-
-    return _DestinationSemantics(
-      destination: destination,
-      selected: selected,
-      onTap: onTap,
-      borderRadius: borderRadius,
-      child: Center(
-        child: AnimatedContainer(
-          duration: motion.duration,
-          curve: motion.curve,
-          height: height,
-          constraints: const BoxConstraints(minWidth: 48),
-          padding: EdgeInsets.symmetric(
-            horizontal: selected ? horizontalPadding : 8,
-          ),
-          decoration: BoxDecoration(
-            color: selected
-                ? indicator.withValues(alpha: indicatorOpacity)
-                : const Color(0x00000000),
-            borderRadius: BorderRadius.circular(borderRadius),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              IconTheme(
-                data: IconThemeData(color: foreground),
-                child: destination.buildIcon(selected: selected),
+    final AdaptiveNavDestination destination = config.destinations[raisedIndex];
+    final bool selected = config.selectedIndex == raisedIndex;
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final double slotWidth = constraints.maxWidth / config.destinations.length;
+        final double start =
+            slotWidth * raisedIndex + (slotWidth - raisedItem.size) / 2;
+        return Stack(
+          clipBehavior: Clip.none,
+          children: <Widget>[
+            child,
+            PositionedDirectional(
+              key: const ValueKey<String>('adaptive-raised-button'),
+              start: start,
+              top: -raisedItem.offset,
+              width: raisedItem.size,
+              child: _RaisedVisual(
+                destination: destination,
+                selected: selected,
+                config: config,
+                size: raisedItem.size,
+                elevation: raisedItem.elevation,
+                backgroundColor: raisedItem.backgroundColor,
+                foregroundColor: raisedItem.foregroundColor,
+                showLabel: raisedItem.showLabel,
+                onTap: () => config.onDestinationSelected(raisedIndex),
               ),
-              if (selected)
-                Flexible(
-                  child: Padding(
-                    padding: EdgeInsetsDirectional.only(start: gap),
-                    child: Text(
-                      destination.label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: config.theme.labelTextStyle?.copyWith(
-                        color: foreground,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
 
-class _IconLabelDestination extends StatelessWidget {
-  const _IconLabelDestination({
+class _RaisedVisual extends StatelessWidget {
+  const _RaisedVisual({
     required this.destination,
     required this.selected,
     required this.config,
-    required this.motion,
-    required this.horizontalPadding,
-    required this.selectedIndicator,
+    required this.size,
+    required this.elevation,
+    required this.backgroundColor,
+    required this.foregroundColor,
+    required this.showLabel,
     required this.onTap,
   });
 
   final AdaptiveNavDestination destination;
   final bool selected;
   final AdaptiveNavBarConfig config;
-  final AdaptiveNavMotion motion;
-  final double horizontalPadding;
-  final bool selectedIndicator;
+  final double size;
+  final double elevation;
+  final Color? backgroundColor;
+  final Color? foregroundColor;
+  final bool showLabel;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final Color foreground = selected
-        ? config.theme.selectedColor ?? Theme.of(context).colorScheme.primary
-        : config.theme.foregroundColor ??
-              Theme.of(context).colorScheme.onSurfaceVariant;
-    return _DestinationSemantics(
-      destination: destination,
+    final Color background =
+        backgroundColor ?? Theme.of(context).colorScheme.inverseSurface;
+    final Color foreground =
+        foregroundColor ?? Theme.of(context).colorScheme.onInverseSurface;
+    return Semantics(
+      button: true,
       selected: selected,
-      onTap: onTap,
-      borderRadius: 24,
-      child: Center(
-        child: AnimatedContainer(
-          duration: motion.duration,
-          curve: motion.curve,
-          constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-          margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 3),
-          padding: EdgeInsets.symmetric(
-            horizontal: horizontalPadding,
-            vertical: 4,
-          ),
-          decoration: BoxDecoration(
-            color: selected && selectedIndicator
-                ? config.theme.indicatorColor
-                : const Color(0x00000000),
-            borderRadius: BorderRadius.circular(22),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              AnimatedScale(
-                scale: selected ? 1.06 : 1,
-                duration: motion.duration,
-                curve: motion.curve,
-                child: IconTheme(
-                  data: IconThemeData(color: foreground),
-                  child: destination.buildIcon(selected: selected),
+      enabled: destination.enabled,
+      label: destination.semanticLabel ?? destination.label,
+      child: Tooltip(
+        message: destination.tooltip ?? destination.label,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Material(
+              color: background,
+              elevation: elevation,
+              shape: const CircleBorder(),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                excludeFromSemantics: true,
+                onTap: destination.enabled ? onTap : null,
+                customBorder: const CircleBorder(),
+                child: SizedBox.square(
+                  dimension: size,
+                  child: Center(
+                    child: IconTheme(
+                      data: IconThemeData(color: foreground),
+                      child: destination.buildIcon(selected: selected),
+                    ),
+                  ),
                 ),
               ),
-              const SizedBox(height: 2),
+            ),
+            if (showLabel) ...<Widget>[
+              const SizedBox(height: 4),
               Text(
                 destination.label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
                 style: config.theme.labelTextStyle?.copyWith(
-                  color: foreground,
+                  color: selected
+                      ? config.theme.selectedColor
+                      : config.theme.foregroundColor,
                   fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
                 ),
               ),
             ],
-          ),
+          ],
         ),
       ),
     );
@@ -1368,14 +1508,12 @@ class _DestinationSemantics extends StatelessWidget {
     required this.destination,
     required this.selected,
     required this.onTap,
-    required this.borderRadius,
     required this.child,
   });
 
   final AdaptiveNavDestination destination;
   final bool selected;
   final VoidCallback onTap;
-  final double borderRadius;
   final Widget child;
 
   @override
@@ -1387,116 +1525,40 @@ class _DestinationSemantics extends StatelessWidget {
       label: destination.semanticLabel ?? destination.label,
       child: Tooltip(
         message: destination.tooltip ?? destination.label,
-        child: Material(
-          type: MaterialType.transparency,
-          child: InkWell(
-            onTap: destination.enabled ? onTap : null,
-            borderRadius: BorderRadius.circular(borderRadius),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-              child: child,
-            ),
-          ),
+        child: GestureDetector(
+          behavior: HitTestBehavior.translucent,
+          excludeFromSemantics: true,
+          onTap: destination.enabled ? onTap : null,
+          child: SizedBox.expand(child: Center(child: child)),
         ),
       ),
     );
   }
 }
 
-List<double> _weightedWidths({
-  required double totalWidth,
-  required int count,
-  required int activeIndex,
-  required double activeWeight,
-  required double inactiveWeight,
-}) {
+List<double> _equalWidths(double totalWidth, int count) {
+  if (count <= 0) {
+    return const <double>[];
+  }
+  final double value = totalWidth / count;
+  return List<double>.filled(count, value);
+}
+
+List<double> _weightedWidths(
+  double totalWidth,
+  int count,
+  int activeIndex,
+  double activeWeight,
+  double inactiveWeight,
+) {
   if (count <= 0) {
     return const <double>[];
   }
   final double totalWeight =
-      activeWeight + inactiveWeight * (count - 1).clamp(0, count);
-  return List<double>.generate(count, (int index) {
-    final double weight = index == activeIndex ? activeWeight : inactiveWeight;
-    return totalWidth * weight / totalWeight;
-  });
-}
-
-double _equalSlotCenter(double width, int count, double position) {
-  final double itemWidth = width / count;
-  return itemWidth * position + itemWidth / 2;
-}
-
-double _slotCenter({
-  required double width,
-  required AdaptiveNavPresentation presentation,
-  required AdaptiveNavBarConfig config,
-  required int index,
-}) {
-  if (presentation.bottomStyle == AdaptiveBottomNavStyle.google) {
-    final AdaptiveGoogleNavStyleConfig style =
-        presentation.styleConfig is AdaptiveGoogleNavStyleConfig
-        ? presentation.styleConfig! as AdaptiveGoogleNavStyleConfig
-        : const AdaptiveGoogleNavStyleConfig();
-    return _weightedSlotCenter(
-      width: width,
-      count: config.destinations.length,
-      activeIndex: config.selectedIndex,
-      targetIndex: index,
-      activeWeight: style.activeFlex,
-      inactiveWeight: style.inactiveFlex,
-    );
-  }
-  if (presentation.bottomStyle == AdaptiveBottomNavStyle.persistent) {
-    final AdaptivePersistentNavStyleConfig style =
-        presentation.styleConfig is AdaptivePersistentNavStyleConfig
-        ? presentation.styleConfig! as AdaptivePersistentNavStyleConfig
-        : const AdaptivePersistentNavStyleConfig();
-    return _weightedSlotCenter(
-      width: width,
-      count: config.destinations.length,
-      activeIndex: config.selectedIndex,
-      targetIndex: index,
-      activeWeight: style.activeFlex,
-      inactiveWeight: style.inactiveFlex,
-    );
-  }
-  if (presentation.bottomStyle == AdaptiveBottomNavStyle.stylish) {
-    final AdaptiveStylishNavStyleConfig style =
-        presentation.styleConfig is AdaptiveStylishNavStyleConfig
-        ? presentation.styleConfig! as AdaptiveStylishNavStyleConfig
-        : const AdaptiveStylishNavStyleConfig();
-    if (style.variant == AdaptiveStylishVariant.bubble) {
-      return _weightedSlotCenter(
-        width: width,
-        count: config.destinations.length,
-        activeIndex: config.selectedIndex,
-        targetIndex: index,
-        activeWeight: style.bubbleActiveFlex,
-        inactiveWeight: 1,
-      );
-    }
-  }
-  return _equalSlotCenter(width, config.destinations.length, index.toDouble());
-}
-
-double _weightedSlotCenter({
-  required double width,
-  required int count,
-  required int activeIndex,
-  required int targetIndex,
-  required double activeWeight,
-  required double inactiveWeight,
-}) {
-  final List<double> widths = _weightedWidths(
-    totalWidth: width,
-    count: count,
-    activeIndex: activeIndex,
-    activeWeight: activeWeight,
-    inactiveWeight: inactiveWeight,
-  );
-  double start = 0;
-  for (int i = 0; i < targetIndex; i++) {
-    start += widths[i];
-  }
-  return start + widths[targetIndex] / 2;
+      activeWeight + inactiveWeight * math.max(0, count - 1);
+  final double unit = totalWidth / totalWeight;
+  return <double>[
+    for (int index = 0; index < count; index++)
+      unit * (index == activeIndex ? activeWeight : inactiveWeight),
+  ];
 }
