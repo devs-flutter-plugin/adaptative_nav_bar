@@ -1,0 +1,41 @@
+name: Apply bottom style token refactor
+
+on:
+  push:
+    branches: [feat/reference-bottom-styles]
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: ${{ github.actor != 'github-actions[bot]' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v6
+        with:
+          ref: feat/reference-bottom-styles
+          fetch-depth: 0
+
+      - name: Apply renderer refactor
+        run: python3 tool/apply_style_token_refactor.py
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.2'
+          channel: stable
+          cache: false
+
+      - name: Format changed Dart files
+        run: dart format lib/src/adaptive_reference_bottom_nav_renderer.dart lib/src/adaptive_bottom_nav_style_config.dart lib/src/adaptive_nav_theme.dart lib/src/adaptive_vertical_nav_renderer.dart lib/src/adaptive_nav_scaffold.dart
+
+      - name: Commit refactor and remove temporary tooling
+        run: |
+          git rm .github/workflows/apply-style-token-refactor.yml tool/apply_style_token_refactor.py
+          git config user.name 'devs-flutter-plugin-ci'
+          git config user.email '58450364+devstecnologia@users.noreply.github.com'
+          git add lib/src/adaptive_reference_bottom_nav_renderer.dart lib/src/adaptive_bottom_nav_style_config.dart lib/src/adaptive_nav_theme.dart lib/src/adaptive_vertical_nav_renderer.dart lib/src/adaptive_nav_scaffold.dart
+          git commit -m 'refactor: complete navigation theme and style tokens'
+          git push origin HEAD:feat/reference-bottom-styles
