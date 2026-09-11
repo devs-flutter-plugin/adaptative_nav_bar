@@ -149,8 +149,8 @@ class _DemoShellState extends State<DemoShell> {
               ? const AdaptiveRaisedNavItem(
                   index: 2,
                   size: 60,
-                  offset: 20,
-                  elevation: 7,
+                  offset: 28,
+                  elevation: 10,
                 )
               : null,
         ),
