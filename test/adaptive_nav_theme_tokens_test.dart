@@ -59,6 +59,54 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('raised destination inherits package theme tokens', (
+    WidgetTester tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(390, 800);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+
+    const Color indicator = Color(0xFFFFE000);
+    const Color selected = Color(0xFF111111);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AdaptiveNavScaffold(
+          selectedIndex: 2,
+          destinations: _destinations,
+          compact: const AdaptiveNavPresentation.bottom(
+            bottomStyle: AdaptiveBottomNavStyle.centerRaised,
+          ),
+          theme: const AdaptiveNavThemeData(
+            indicatorColor: indicator,
+            selectedColor: selected,
+            selectedIconSize: 30,
+          ),
+          onDestinationSelected: (_) {},
+          body: const SizedBox.expand(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final Finder raisedVisual = find.byKey(
+      const ValueKey<String>('adaptive-raised-visual'),
+    );
+    final Material material = tester.widget<Material>(raisedVisual);
+    expect(material.color, indicator);
+    expect(material.elevation, 10);
+
+    final Finder iconTheme = find.descendant(
+      of: raisedVisual,
+      matching: find.byType(IconTheme),
+    );
+    final IconThemeData iconData = tester.widget<IconTheme>(iconTheme.first).data;
+    expect(iconData.color, selected);
+    expect(iconData.size, 30);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('standard style configs control their own geometry', (
     WidgetTester tester,
   ) async {
@@ -103,6 +151,42 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(tester.getSize(surface).width, closeTo(362, 0.5));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Stylish bubble uses its active flex token', (
+    WidgetTester tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(390, 800);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+
+    const List<AdaptiveNavDestination> destinations = <AdaptiveNavDestination>[
+      AdaptiveNavDestination(icon: Icon(Icons.home), label: 'Home'),
+      AdaptiveNavDestination(icon: Icon(Icons.search), label: 'Search'),
+    ];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AdaptiveNavScaffold(
+          selectedIndex: 0,
+          destinations: destinations,
+          compact: const AdaptiveNavPresentation.bottom(
+            bottomStyle: AdaptiveBottomNavStyle.stylish,
+            styleConfig: AdaptiveStylishNavStyleConfig(
+              variant: AdaptiveStylishVariant.bubble,
+              bubbleActiveFlex: 2,
+            ),
+          ),
+          onDestinationSelected: (_) {},
+          body: const SizedBox.expand(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.getCenter(find.byIcon(Icons.search)).dx, greaterThan(310));
     expect(tester.takeException(), isNull);
   });
 
