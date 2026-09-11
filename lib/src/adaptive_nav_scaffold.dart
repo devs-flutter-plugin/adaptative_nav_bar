@@ -118,9 +118,11 @@ class _AdaptiveNavScaffoldState extends State<AdaptiveNavScaffold> {
     );
     final bool disableAnimations =
         MediaQuery.maybeOf(context)?.disableAnimations ?? false;
-    final Duration duration = disableAnimations
-        ? Duration.zero
-        : widget.motion.duration;
+    final AdaptiveNavMotion effectiveMotion = AdaptiveNavMotion(
+      duration: disableAnimations ? Duration.zero : widget.motion.duration,
+      curve: widget.motion.curve,
+      reverseCurve: widget.motion.reverseCurve,
+    );
 
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
@@ -157,25 +159,27 @@ class _AdaptiveNavScaffoldState extends State<AdaptiveNavScaffold> {
             body,
             presentation,
             config,
-            duration,
+            effectiveMotion,
           ),
           AdaptiveNavPresentationType.rail => _buildRail(
+            context,
             body,
             presentation,
             config,
-            duration,
+            effectiveMotion,
           ),
           AdaptiveNavPresentationType.sidebar => _buildSidebar(
+            context,
             body,
             presentation,
             config,
-            duration,
+            effectiveMotion,
           ),
           AdaptiveNavPresentationType.custom => _buildCustom(
             body,
             presentation,
             config,
-            duration,
+            effectiveMotion,
           ),
         };
       },
@@ -187,21 +191,25 @@ class _AdaptiveNavScaffoldState extends State<AdaptiveNavScaffold> {
     Widget body,
     AdaptiveNavPresentation presentation,
     AdaptiveNavBarConfig config,
-    Duration duration,
+    AdaptiveNavMotion motion,
   ) {
     final bool useReferenceRenderer =
         AdaptiveReferenceBottomNavRenderer.supports(presentation.bottomStyle);
-    final Widget renderer = useReferenceRenderer
+    final Widget rawRenderer = useReferenceRenderer
         ? AdaptiveReferenceBottomNavRenderer(
             config: config,
             presentation: presentation,
-            motion: widget.motion,
+            motion: motion,
           )
         : AdaptiveBottomNavRenderer(
             config: config,
             presentation: presentation,
-            motion: widget.motion,
+            motion: motion,
           );
+    final Widget renderer = _AdaptiveMaterialNavigationTheme(
+      config: config,
+      child: rawRenderer,
+    );
 
     if (presentation.bottomStyle == AdaptiveBottomNavStyle.material3 &&
         presentation.raisedItem == null) {
@@ -210,9 +218,7 @@ class _AdaptiveNavScaffoldState extends State<AdaptiveNavScaffold> {
           Expanded(child: body),
           _VisibilityMotion(
             visible: _visible,
-            duration: duration,
-            curve: widget.motion.curve,
-            reverseCurve: widget.motion.reverseCurve,
+            motion: motion,
             axis: Axis.vertical,
             child: renderer,
           ),
@@ -226,9 +232,7 @@ class _AdaptiveNavScaffoldState extends State<AdaptiveNavScaffold> {
     final double safeBottom = MediaQuery.viewPaddingOf(context).bottom;
     final Widget floatingBar = _VisibilityMotion(
       visible: _visible,
-      duration: duration,
-      curve: widget.motion.curve,
-      reverseCurve: widget.motion.reverseCurve,
+      motion: motion,
       axis: Axis.vertical,
       child: renderer,
     );
@@ -249,23 +253,26 @@ class _AdaptiveNavScaffoldState extends State<AdaptiveNavScaffold> {
   }
 
   Widget _buildRail(
+    BuildContext context,
     Widget body,
     AdaptiveNavPresentation presentation,
     AdaptiveNavBarConfig config,
-    Duration duration,
+    AdaptiveNavMotion motion,
   ) {
-    final Widget rail = AdaptiveRailRenderer(
+    final Widget rail = _AdaptiveMaterialNavigationTheme(
       config: config,
-      presentation: presentation,
+      child: AdaptiveRailRenderer(
+        config: config,
+        presentation: presentation,
+        motion: motion,
+      ),
     );
 
     return Row(
       children: <Widget>[
         _VisibilityMotion(
           visible: _visible,
-          duration: duration,
-          curve: widget.motion.curve,
-          reverseCurve: widget.motion.reverseCurve,
+          motion: motion,
           axis: Axis.horizontal,
           child: SizedBox(width: presentation.width, child: rail),
         ),
@@ -275,10 +282,11 @@ class _AdaptiveNavScaffoldState extends State<AdaptiveNavScaffold> {
   }
 
   Widget _buildSidebar(
+    BuildContext context,
     Widget body,
     AdaptiveNavPresentation presentation,
     AdaptiveNavBarConfig config,
-    Duration duration,
+    AdaptiveNavMotion motion,
   ) {
     final double width = config.expanded
         ? presentation.width
@@ -288,18 +296,20 @@ class _AdaptiveNavScaffoldState extends State<AdaptiveNavScaffold> {
       children: <Widget>[
         _VisibilityMotion(
           visible: _visible,
-          duration: duration,
-          curve: widget.motion.curve,
-          reverseCurve: widget.motion.reverseCurve,
+          motion: motion,
           axis: Axis.horizontal,
           child: AnimatedContainer(
-            duration: duration,
-            curve: widget.motion.curve,
+            duration: motion.duration,
+            curve: motion.curve,
             width: width,
-            child: AdaptiveSidebarRenderer(
+            child: _AdaptiveMaterialNavigationTheme(
               config: config,
-              presentation: presentation,
-              onToggleExpanded: () => _toggleExpanded(config.expanded),
+              child: AdaptiveSidebarRenderer(
+                config: config,
+                presentation: presentation,
+                motion: motion,
+                onToggleExpanded: () => _toggleExpanded(config.expanded),
+              ),
             ),
           ),
         ),
@@ -312,13 +322,11 @@ class _AdaptiveNavScaffoldState extends State<AdaptiveNavScaffold> {
     Widget body,
     AdaptiveNavPresentation presentation,
     AdaptiveNavBarConfig config,
-    Duration duration,
+    AdaptiveNavMotion motion,
   ) {
     final Widget custom = _VisibilityMotion(
       visible: _visible,
-      duration: duration,
-      curve: widget.motion.curve,
-      reverseCurve: widget.motion.reverseCurve,
+      motion: motion,
       axis: presentation.axis,
       child: presentation.builder!(context, config),
     );
@@ -411,20 +419,87 @@ class _AdaptiveNavScaffoldState extends State<AdaptiveNavScaffold> {
   }
 }
 
+class _AdaptiveMaterialNavigationTheme extends StatelessWidget {
+  const _AdaptiveMaterialNavigationTheme({
+    required this.config,
+    required this.child,
+  });
+
+  final AdaptiveNavBarConfig config;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    final Color? foreground = config.theme.foregroundColor;
+    final Color? selected = config.theme.selectedColor;
+    final TextStyle? labelStyle = config.theme.labelTextStyle;
+    final double disabledOpacity = config.theme.disabledOpacity ?? 0.38;
+
+    return Theme(
+      data: theme.copyWith(
+        navigationBarTheme: theme.navigationBarTheme.copyWith(
+          backgroundColor: config.theme.backgroundColor,
+          indicatorColor: config.theme.indicatorColor,
+          elevation: config.theme.elevation,
+          iconTheme: WidgetStateProperty.resolveWith<IconThemeData?>(
+            (Set<WidgetState> states) {
+              final bool isSelected = states.contains(WidgetState.selected);
+              final bool isDisabled = states.contains(WidgetState.disabled);
+              return IconThemeData(
+                color: isSelected ? selected : foreground,
+                size: isSelected
+                    ? config.theme.selectedIconSize
+                    : config.theme.iconSize,
+                opacity: isDisabled ? disabledOpacity : 1,
+              );
+            },
+          ),
+          labelTextStyle: WidgetStateProperty.resolveWith<TextStyle?>(
+            (Set<WidgetState> states) {
+              final bool isSelected = states.contains(WidgetState.selected);
+              final bool isDisabled = states.contains(WidgetState.disabled);
+              return labelStyle?.copyWith(
+                color: isSelected ? selected : foreground,
+              ).copyWith(
+                color: (isSelected ? selected : foreground)?.withValues(
+                  alpha: isDisabled ? disabledOpacity : 1,
+                ),
+              );
+            },
+          ),
+        ),
+        navigationRailTheme: theme.navigationRailTheme.copyWith(
+          backgroundColor: config.theme.backgroundColor,
+          indicatorColor: config.theme.indicatorColor,
+          elevation: config.theme.elevation,
+          selectedIconTheme: IconThemeData(
+            color: selected,
+            size: config.theme.selectedIconSize,
+          ),
+          unselectedIconTheme: IconThemeData(
+            color: foreground,
+            size: config.theme.iconSize,
+          ),
+          selectedLabelTextStyle: labelStyle?.copyWith(color: selected),
+          unselectedLabelTextStyle: labelStyle?.copyWith(color: foreground),
+        ),
+      ),
+      child: child,
+    );
+  }
+}
+
 class _VisibilityMotion extends StatelessWidget {
   const _VisibilityMotion({
     required this.visible,
-    required this.duration,
-    required this.curve,
-    required this.reverseCurve,
+    required this.motion,
     required this.axis,
     required this.child,
   });
 
   final bool visible;
-  final Duration duration;
-  final Curve curve;
-  final Curve reverseCurve;
+  final AdaptiveNavMotion motion;
   final Axis axis;
   final Widget child;
 
@@ -439,12 +514,12 @@ class _VisibilityMotion extends StatelessWidget {
         excluding: !visible,
         child: AnimatedSlide(
           offset: visible ? Offset.zero : hiddenOffset,
-          duration: duration,
-          curve: visible ? curve : reverseCurve,
+          duration: motion.duration,
+          curve: visible ? motion.curve : motion.reverseCurve,
           child: AnimatedOpacity(
             opacity: visible ? 1 : 0,
-            duration: duration,
-            curve: visible ? curve : reverseCurve,
+            duration: motion.duration,
+            curve: visible ? motion.curve : motion.reverseCurve,
             child: child,
           ),
         ),
