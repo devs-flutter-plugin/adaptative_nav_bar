@@ -2,7 +2,6 @@
 library;
 
 export 'src/adaptive_bottom_nav_style_config.dart';
-export 'src/adaptive_standard_bottom_nav_style_config.dart';
 export 'src/adaptive_nav_bar_config.dart';
 export 'src/adaptive_nav_breakpoints.dart';
 export 'src/adaptive_nav_controller.dart';
