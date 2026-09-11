@@ -1,5 +1,5 @@
 name: adaptative_nav_bar
-description: Adaptive Flutter navigation with Material 3, floating, pill, notch, glass, rail, sidebar, and custom presentations behind one stable API.
+description: Adaptive Flutter navigation with Material 3, floating, Google-style, notch, raised-center, rail, sidebar, and custom presentations behind one API.
 version: 0.1.0
 repository: https://github.com/devs-flutter-plugin/adaptative_nav_bar
 issue_tracker: https://github.com/devs-flutter-plugin/adaptative_nav_bar/issues

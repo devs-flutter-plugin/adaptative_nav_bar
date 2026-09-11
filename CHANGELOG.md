@@ -4,6 +4,12 @@
 - Added router-agnostic `AdaptiveNavScaffold`.
 - Added compact/medium/expanded adaptive breakpoints.
 - Added Material 3, floating, pill, notch, bubble, glass, and minimal bottom navigation styles.
+- Added reference-inspired `persistent`, `google`, `stylish`, and `centerRaised` bottom navigation styles.
+- Added composable `AdaptiveRaisedNavItem` support for elevated primary mobile destinations.
+- Refactored bottom, rail, and sidebar rendering into independent renderer layers.
+- Improved notch fidelity with an animated moving notch and raised selected destination.
+- Improved persistent-style fidelity with an expanding selected capsule.
+- Improved collapsible sidebar behavior and density following SidebarX interaction patterns.
 - Added Material 3, indicator, and compact rail styles.
 - Added Material-like, collapsible, and minimal sidebar styles.
 - Added custom presentation builder contract.
@@ -12,7 +18,14 @@
 - Added scroll-aware hide/show behavior.
 - Added destination reselect callback.
 - Added `AdaptiveNavThemeData` ThemeExtension support.
+- Added shared icon sizing and disabled-opacity theme tokens across Material and custom renderers.
+- Added dedicated geometry configs for pill, bubble, glass, and minimal bottom styles.
+- Unified vertical rail/sidebar animation timing under `AdaptiveNavMotion`, including reduced-motion handling.
+- Centralized private bottom/vertical renderer metrics to remove scattered hardcoded dimensions.
+- Improved first/last notch positioning and raised-destination theme inheritance.
+- Added theme-token, style-config, and reduced-motion regression coverage.
 - Added GoRouter `StatefulShellRoute.indexedStack` example.
 - Added unit/widget tests and self-hosted CI with publish dry-run validation.
 - Migrated Material imports to the standalone official `material_ui` package.
 - Fixed narrow rail overflow, compact indicator footprint, and vertical destination spacing.
+- Added regression coverage for raised middle navigation and reference-inspired styles.

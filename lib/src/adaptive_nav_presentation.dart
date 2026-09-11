@@ -1,5 +1,6 @@
 import 'package:material_ui/material_ui.dart';
 
+import 'adaptive_bottom_nav_style_config.dart';
 import 'adaptive_nav_bar_config.dart';
 
 /// Built-in bottom navigation visual variants.
@@ -7,23 +8,77 @@ enum AdaptiveBottomNavStyle {
   /// Flutter Material 3 [NavigationBar].
   material3,
 
-  /// Floating rounded surface.
+  /// Floating rounded surface inspired by scroll-aware floating bars.
   floating,
 
-  /// Compact capsule/pill navigation.
+  /// Compact capsule navigation with a selected capsule.
   pill,
 
-  /// Animated selected item with a raised notch treatment.
+  /// Animated moving notch with a raised selected destination.
   notch,
 
-  /// Selected destination expands into a bubble-like indicator.
+  /// Bubble navigation with an expanding selected destination.
   bubble,
 
   /// Translucent blurred floating surface.
   glass,
 
-  /// Minimal icon/label navigation without a persistent background surface.
+  /// Minimal icon/label navigation without persistent chrome.
   minimal,
+
+  /// Expanding selected capsule inspired by persistent_bottom_nav_bar style 1.
+  persistent,
+
+  /// Google-style navigation where only the selected tab expands to show text.
+  google,
+
+  /// Animated, dot, bubble, or blur family inspired by stylish_bottom_bar.
+  stylish,
+
+  /// Classic mobile bar with a permanently raised middle destination.
+  centerRaised,
+}
+
+/// Configuration for a destination rendered above the bottom bar surface.
+///
+/// This is useful for mobile layouts where a primary destination, normally the
+/// middle one, should behave like an integrated floating action button while
+/// still remaining a normal navigation destination.
+@immutable
+class AdaptiveRaisedNavItem {
+  /// Creates a raised navigation destination configuration.
+  const AdaptiveRaisedNavItem({
+    this.index,
+    this.size = 60,
+    this.offset = 28,
+    this.elevation = 10,
+    this.backgroundColor,
+    this.foregroundColor,
+    this.showLabel = true,
+  }) : assert(size >= 48),
+       assert(offset >= 0),
+       assert(elevation >= 0);
+
+  /// Destination index to raise. When omitted, the middle destination is used.
+  final int? index;
+
+  /// Diameter of the raised circular destination.
+  final double size;
+
+  /// Distance the destination protrudes above the bar.
+  final double offset;
+
+  /// Material elevation of the raised destination.
+  final double elevation;
+
+  /// Optional raised destination background color.
+  final Color? backgroundColor;
+
+  /// Optional raised destination foreground color.
+  final Color? foregroundColor;
+
+  /// Whether the destination label remains visible below the raised button.
+  final bool showLabel;
 }
 
 /// Built-in rail visual variants.
@@ -31,10 +86,10 @@ enum AdaptiveRailStyle {
   /// Flutter Material 3 [NavigationRail].
   material3,
 
-  /// Material rail with a stronger selection indicator.
+  /// Dense rail with a compact selection indicator.
   indicator,
 
-  /// Compact custom rail with labels shown for the selected item only.
+  /// Compact custom rail without a persistent selection background.
   compact,
 }
 
@@ -43,7 +98,7 @@ enum AdaptiveSidebarStyle {
   /// Material-like sidebar surface.
   material3,
 
-  /// Collapsible sidebar inspired by modern desktop navigation.
+  /// Collapsible desktop sidebar inspired by SidebarX interaction patterns.
   collapsible,
 
   /// Low-chrome sidebar with compact destination rows.
@@ -71,8 +126,10 @@ class AdaptiveNavPresentation {
   /// Creates a bottom presentation.
   const AdaptiveNavPresentation.bottom({
     this.bottomStyle = AdaptiveBottomNavStyle.material3,
+    this.styleConfig,
     this.maxWidth,
     this.reserveBodySpace = true,
+    this.raisedItem,
   }) : type = AdaptiveNavPresentationType.bottom,
        railStyle = AdaptiveRailStyle.material3,
        sidebarStyle = AdaptiveSidebarStyle.material3,
@@ -89,10 +146,12 @@ class AdaptiveNavPresentation {
     this.width = 80,
   }) : type = AdaptiveNavPresentationType.rail,
        bottomStyle = AdaptiveBottomNavStyle.material3,
+       styleConfig = null,
        sidebarStyle = AdaptiveSidebarStyle.material3,
        collapsedWidth = 80,
        maxWidth = null,
        reserveBodySpace = true,
+       raisedItem = null,
        builder = null,
        axis = Axis.vertical;
 
@@ -104,9 +163,11 @@ class AdaptiveNavPresentation {
     this.collapsedWidth = 80,
   }) : type = AdaptiveNavPresentationType.sidebar,
        bottomStyle = AdaptiveBottomNavStyle.material3,
+       styleConfig = null,
        railStyle = AdaptiveRailStyle.material3,
        maxWidth = null,
        reserveBodySpace = true,
+       raisedItem = null,
        builder = null,
        axis = Axis.vertical;
 
@@ -117,18 +178,34 @@ class AdaptiveNavPresentation {
     this.reserveBodySpace = true,
   }) : type = AdaptiveNavPresentationType.custom,
        bottomStyle = AdaptiveBottomNavStyle.material3,
+       styleConfig = null,
        railStyle = AdaptiveRailStyle.material3,
        sidebarStyle = AdaptiveSidebarStyle.material3,
        extended = false,
        width = 280,
        collapsedWidth = 80,
-       maxWidth = null;
+       maxWidth = null,
+       raisedItem = null;
 
   /// Presentation family.
   final AdaptiveNavPresentationType type;
 
   /// Bottom visual style when [type] is [AdaptiveNavPresentationType.bottom].
   final AdaptiveBottomNavStyle bottomStyle;
+
+  /// Optional configuration owned by the selected bottom visual family.
+  ///
+  /// For example, [AdaptiveGoogleNavStyleConfig] only configures the Google
+  /// renderer and does not leak Google-specific padding or flex values into the
+  /// generic presentation contract.
+  final AdaptiveBottomNavStyleConfig? styleConfig;
+
+  /// Optional raised destination layered over a bottom presentation.
+  ///
+  /// This can be combined with the reference-inspired bottom styles. The
+  /// [AdaptiveBottomNavStyle.centerRaised] style supplies this behavior with a
+  /// default middle destination even when [raisedItem] is omitted.
+  final AdaptiveRaisedNavItem? raisedItem;
 
   /// Rail visual style when [type] is [AdaptiveNavPresentationType.rail].
   final AdaptiveRailStyle railStyle;
